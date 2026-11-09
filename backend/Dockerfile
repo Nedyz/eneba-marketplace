@@ -53,7 +53,11 @@ ENV APP_NAME="Eneba Marketplace" \
 # - VIEW_CACHE=false: JSON API without Blade views; view:cache fails when
 #   resources/views does not exist (found by simulating the startup locally),
 #   which would stop the container. The script then runs "optimize --except=views".
+# - MIGRATION_SEED=true: runs `migrate --force --seed`, so DatabaseSeeder runs on every
+#   start. It seeds the demo catalog once (empty database) and skips afterwards. Seeding
+#   inside the container encrypts the keys with production's APP_KEY (DECISIONS.md D20).
 ENV AUTORUN_ENABLED=true \
+    AUTORUN_LARAVEL_MIGRATION_SEED=true \
     AUTORUN_LARAVEL_STORAGE_LINK=false \
     AUTORUN_LARAVEL_VIEW_CACHE=false
 
