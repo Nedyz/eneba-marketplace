@@ -68,8 +68,8 @@ class ProductQuery
      * LEFT, so products without stock stay in the list with null prices.
      *
      * Per product, Postgres walks offers_active_product_price_idx cheapest first
-     * and stops at the first offer whose EXISTS finds a key (index on
-     * product_keys (offer_id, status)).
+     * and stops at the first offer whose EXISTS finds a key (partial index
+     * product_keys_unsold_offer_idx, which skips sold keys).
      *
      * @param  Builder<Product>  $query
      * @return Builder<Product>
