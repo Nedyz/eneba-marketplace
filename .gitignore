@@ -1,0 +1,17 @@
+# Secrets: every .env file is ignored, only the documented templates are committed
+.env
+.env.*
+!.env.example
+
+# Dependencies (restored with composer install / npm install)
+vendor/
+node_modules/
+
+# Build output
+frontend/dist/
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.log
