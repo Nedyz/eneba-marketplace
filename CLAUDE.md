@@ -33,7 +33,7 @@ Local prerequisites: PHP 8.4 + Composer (Herd Lite, `~/.config/herd-lite/bin`), 
 
 Backend (`backend/`):
 - `composer install` then `cp .env.example .env` and `php artisan key:generate` (first time)
-- `php artisan migrate` (dev database)
+- `php artisan migrate` (dev database), `php artisan migrate:fresh --seed` (rebuild with demo data; demo login `demo@example.com` / `password`)
 - `php artisan serve` → http://localhost:8000 (health: `/api/health`)
 - `php artisan test` (always runs on `eneba_test`, forced in `phpunit.xml`)
 

@@ -51,17 +51,18 @@ eneba-marketplace/
 ## Data model
 
 Money is stored as integer cents. All tables have `created_at` / `updated_at`.
+Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL), and business rules are also CHECK constraints (prices > 0, a deal is cheaper than its original price, a sold or reserved key always has an order item). Refinements made on 9 Nov (day 2 start) are in `DECISIONS.md` D22.
 
 | Table | Key fields | Notes |
 |---|---|---|
 | `users` | id, name, email (unique), password | Laravel default |
 | `personal_access_tokens` | | Sanctum |
 | `platforms` | id, name, slug | Steam, PlayStation, Xbox, Nintendo, EA app... |
-| `regions` | id, code, name | GLOBAL, EUROPE, NORTH AMERICA... |
-| `products` | id, slug (unique), name, description, image_url, platform_id, region_id, release_date | One product = one edition (game + platform + region). GIN trigram index on `lower(name)`. |
+| `regions` | id, slug (unique), name | global, europe, north-america... Same shape as platforms, so both are URL filters by slug. |
+| `products` | id, slug (unique), name, description, image_url (nullable), platform_id, region_id, release_date | One product = one edition (game + platform + region). `name` is the game title only. GIN trigram index on `name` (pg_trgm is case-insensitive). |
 | `sellers` | id, name, rating | Seeded, no seller accounts |
 | `offers` | id, product_id, seller_id, price_cents, original_price_cents (nullable), is_active | unique(product_id, seller_id). A deal = `original_price_cents > price_cents`. |
-| `product_keys` | id, offer_id, code (encrypted), status (`available`/`reserved`/`sold`), reserved_until, order_item_id (nullable), sold_at | Index (offer_id, status). Stock is derived by counting available keys. |
+| `product_keys` | id, offer_id, code (encrypted), status (`available`/`reserved`/`sold`), reserved_until, order_item_id (nullable), sold_at | Index (offer_id, status). Stock is derived by counting available keys (including reservations past `reserved_until`). Migrated after `order_items`, which it references. |
 | `orders` | id, user_id, status (`pending`/`paid`/`failed`/`expired`), total_cents, currency, expires_at, payment_reference, paid_at | `expires_at` = creation + 15 minutes |
 | `order_items` | id, order_id, offer_id, quantity, unit_price_cents, product_name, seller_name | Price and names are copied at purchase time |
 | `home_blocks` | id, type, title, endpoint, position, is_active | Homepage layout, see below |

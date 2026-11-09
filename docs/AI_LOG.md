@@ -43,3 +43,26 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 - Day 2: CI (GitHub Actions + Postgres), migrations and seeders, catalog API, Eneba theme tokens, layout shell.
 - Confirm on day 2 with a deliberately broken migration that Render's free tier keeps the old version live (D19).
 - Render free tier cold start (about a minute) still to be handled in the UI and README.
+
+## Session 2 — 9 November 2026 (evening): data model (day 2, started early)
+
+**Done**
+- Plan for tables and seed data agreed before code.
+- 10 migrations: platforms, regions, sellers, products (GIN trigram index), offers, orders, order_items, product_keys, home_blocks, banners. CHECK constraints for business rules. Up, full rollback and re-run verified.
+- Minimal Eloquent models (fillable, casts, relations; `ProductKey::code` uses the `encrypted` cast and is hidden from JSON).
+- Deterministic demo seed: 7 platforms, 4 regions, 8 invented sellers, 50 games → 105 products, 371 offers (99 deals, 18 inactive, ~10% without stock), 2,446 encrypted keys, 11 users, 62 orders (60 paid over 45 days, plus one failed and one expired for the demo user).
+- `DemoSeedTest` (11 tests): encryption round trip, sold keys linked to paid items of the same offer, key count = quantity, totals, every product buyable, 30-day window, demo login, idempotency, CHECK constraints, typo search smoke test. 19 tests pass.
+- Verified with `EXPLAIN` that `ILIKE` and `<%` both use the trigram index. Simulated the production start twice (seeds, then skips).
+
+**Decisions**
+- D20: seed inside the production container (keys must be encrypted with production's `APP_KEY`), idempotent and transactional, via `AUTORUN_LARAVEL_MIGRATION_SEED`.
+- D21: generated covers instead of image URLs.
+- D22: game title only in `name`, trigram index on `name`, `regions.slug`, varchar + CHECK statuses.
+
+**Problems found and fixed**
+- Nedas asked whether bulk-inserted keys skip the `encrypted` cast: they do (insert passes straight to the query builder), so the seeder encrypts with `Crypt::encryptString()`, the same call the cast makes. Covered by a test.
+- The day 1 health test dropped `pg_trgm`, which PostgreSQL now refuses because the products index depends on it; the test uses `CASCADE` (rolled back afterwards).
+
+**Open issues**
+- Not deployed yet: the first deploy with this change seeds Neon. Check the Render logs for the seeder output.
+- Rest of day 2: CI, catalog API, theme tokens, layout shell, D19 broken-migration check.
