@@ -73,9 +73,15 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 ## D19. Migrations run at container start; a failed migration keeps the old version live (9 Nov)
 - **Context**: Render's pre-deploy command (the usual place for migrations) is paid-only. Nedas asked what happens on Render if a migration fails during startup.
 - **Decision**: the Docker image (serversideup/php) runs `migrate --force` and `optimize` on every start. If a step fails, the container exits before nginx starts.
-- **What happens on failure**: Render only switches traffic to a new instance after it passes the health check (`/api/health`), and cancels the deploy after 15 minutes otherwise, so the previous version keeps serving. Render's docs do not describe free-tier differences, so we will confirm this once on day 2 with a deliberately broken deploy. On PostgreSQL each migration runs in its own transaction (checked in Laravel's `Migrator`), so the failed migration leaves no half-applied change; earlier migrations from the same deploy stay applied.
+- **What happens on failure**: Render only switches traffic to a new instance after it passes the health check (`/api/health`), and cancels the deploy after 15 minutes otherwise, so the previous version keeps serving. On PostgreSQL each migration runs in its own transaction (checked in Laravel's `Migrator`), so the failed migration leaves no half-applied change; earlier migrations from the same deploy stay applied.
 - **Rule that follows**: migrations must be backward compatible (add columns or tables first, remove old ones in a later deploy), because the old code may run against the new schema after a partial failure.
 - **Gave up**: every cold start (free tier spins down after 15 minutes idle) also runs the migration check, adding about a second to wake-up.
+- **Verified on the free tier (9 Nov, commits `9b117e4` and revert `3cfa357`)**: a migration running `SELECT 1/0` was pushed on purpose.
+  - CI's `docker` job caught it first: the container stopped during startup with `SQLSTATE[22012]: Division by zero`.
+  - Render did not auto-deploy that commit (cause unknown, see below), so it was deployed manually. The deploy failed about 1 minute after it started ("Exited with status 1 while running your code"). The error was in the Render logs, and Render did not retry.
+  - The previous version kept serving: an external check every 10 seconds (90 checks of `/api/health` and `/api/products` over 16 minutes, including the failed deploy) never saw anything but 200.
+  - Neon afterwards: no row for the failed migration in `migrations`, still 16 migrations. The transaction rolled back as expected.
+- **Unexplained, one-off**: Render did not auto-deploy `9b117e4` (Auto-Deploy "On Commit", no build filters, not CI gating: the previous deploy started before its CI finished). The revert `3cfa357` auto-deployed normally. Lesson: after a push, confirm in Render's Events that a deploy actually started.
 
 ## D20. Demo data is seeded inside the production container, once (9 Nov)
 - **Problem found while planning the seed**: product keys are encrypted with the `APP_KEY` of whoever runs the seeder. Seeding Neon from a laptop would encrypt them with the local key, and production could not decrypt them at key reveal.
@@ -123,4 +129,8 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
   - `frontend`: lint, type check and production build on Node 26, pinned in `.nvmrc` and `engines` to match Vercel.
   - `docker`: builds the production image and starts it against an empty database, checking that the first start migrates and seeds 105 products and that a restart skips the seed (D20). The full container log is always printed.
 - **Why the docker job**: there is no local Docker (D16), so before this, Dockerfile and startup problems only showed up in Render builds. It costs a few minutes per run.
-- **Deploy gating**: Render and Vercel deploy on every push regardless of CI. Render's "wait for CI" auto-deploy setting will be turned on after the D19 broken-migration check, which needs an ungated deploy to observe what Render does.
+- **Deploy gating**: Vercel deploys on every push regardless of CI. Render's auto-deploy is switched to "After CI Checks Pass" after the D19 check (which needed an ungated deploy to observe Render's behavior), so a commit with failing tests never reaches the production API.
+
+## D26. The app is called "Intersheba", not "Eneba" (9 Nov)
+- **Decision (Nedas)**: the app copies Eneba's look and has sign-in and checkout, so a public site branded "Eneba" could be mistaken for the real store. The visible name is "Intersheba" (a text wordmark, no Eneba logo or assets), and the footer says it is an Eneba internship assignment, not affiliated with Eneba.
+- **Scope**: user-visible branding (wordmark, page title, footer). Internal names (repository, service URLs, database names) stay as they are.

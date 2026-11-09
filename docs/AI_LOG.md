@@ -91,3 +91,23 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 **Open issues**
 - Search (`q`, relevance sort, suggestions) on day 3 plugs into `ProductQuery`.
 - Theme tokens, layout shell, CI and the D19 broken-migration check are still open for day 2 (plus checking whether serversideup hides artisan output in Render logs).
+
+## Session 4 — 9 November 2026 (evening): CI and the D19 deploy check (day 2)
+
+**Done**
+- GitHub Actions CI with three parallel jobs: `backend` (Pint, 46 tests on PostgreSQL 17, migration round trip), `frontend` (lint, type check, build on Node 26, pinned to match Vercel), `docker` (builds the production image, starts it twice: first start seeds 105 products, second skips). Green on the first run.
+- The CI container log answered an open question: the image does print `Seeding database.`; its absence in Render's log view is on Render's side.
+- D19 check: pushed a migration running `SELECT 1/0`. CI's docker job caught it first. Render's manual deploy failed after about 1 minute with the error in the logs and no retries. An external check every 10 seconds saw only 200s during the whole check. Neon had no trace of the failed migration afterwards. Reverted.
+- Fixed a stale index name in a `ProductQuery` comment.
+
+**Decisions**
+- D25: CI jobs; Render auto-deploy to "After CI Checks Pass" after the D19 check (Nedas's ordering, so the broken deploy could be observed).
+- D19 updated with the verified free-tier behavior.
+- D26: visible name "Intersheba" (Nedas: a public Eneba look-alike with checkout must not be mistaken for the real store).
+
+**Problems found**
+- Render skipped the auto-deploy of the broken commit for no visible reason (not CI gating, no build filters); the revert auto-deployed normally. Recorded as a one-off.
+
+**Open issues**
+- Turn on Render "After CI Checks Pass" (Nedas, in the dashboard).
+- Theme tokens and layout shell next.
