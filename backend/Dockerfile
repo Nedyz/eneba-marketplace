@@ -32,9 +32,13 @@ USER www-data
 # APP_URL, FRONTEND_URL) are set in the Render dashboard, never here.
 # - LOG_CHANNEL=stderr: Render's filesystem is ephemeral; logs to stderr show in the dashboard.
 # - SESSION_DRIVER=array: the API is stateless (bearer tokens); no session row per request.
+# - DB_CONNECTION=pgsql: Laravel falls back to SQLite when it is unset (there is no .env in the image).
+# - DB_SSLMODE=require: always encrypt the connection to Neon, even if DB_URL lacks ?sslmode=require.
 ENV APP_NAME="Eneba Marketplace" \
     APP_ENV=production \
     APP_DEBUG=false \
+    DB_CONNECTION=pgsql \
+    DB_SSLMODE=require \
     LOG_CHANNEL=stderr \
     SESSION_DRIVER=array \
     PHP_OPCACHE_ENABLE=1
