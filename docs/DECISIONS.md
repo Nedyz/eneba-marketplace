@@ -116,3 +116,11 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 - Every sort ends with `products.id`, so offset pagination (D13) never shows a product twice or skips one.
 - Prices in the API are integer cents (D12); the frontend converts to euros.
 - `/products/filters` returns the same options for every request (not narrowed by the active filters), only platforms and regions that have products, and the min/max from price for the slider.
+
+## D25. CI on GitHub Actions, including a production image start (9 Nov)
+- **Jobs** (parallel, on every push to `main` and every pull request):
+  - `backend`: Pint formatting check, tests on a PostgreSQL 17 service container (real `pg_trgm`), and a migration round trip (`migrate:fresh`, `migrate:reset`, `migrate`) so a broken `down()` is caught.
+  - `frontend`: lint, type check and production build on Node 26, pinned in `.nvmrc` and `engines` to match Vercel.
+  - `docker`: builds the production image and starts it against an empty database, checking that the first start migrates and seeds 105 products and that a restart skips the seed (D20). The full container log is always printed.
+- **Why the docker job**: there is no local Docker (D16), so before this, Dockerfile and startup problems only showed up in Render builds. It costs a few minutes per run.
+- **Deploy gating**: Render and Vercel deploy on every push regardless of CI. Render's "wait for CI" auto-deploy setting will be turned on after the D19 broken-migration check, which needs an ungated deploy to observe what Render does.
