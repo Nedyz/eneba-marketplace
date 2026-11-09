@@ -28,4 +28,23 @@
 - At the end of each session, append a short summary to `docs/AI_LOG.md`: what was done, decisions made, open issues. Full transcripts are exported separately with `/export` into `ai-logs/`.
 
 ## Commands
-To be filled in once the frontend and backend are scaffolded.
+
+Local prerequisites: PHP 8.4 + Composer (Herd Lite, `~/.config/herd-lite/bin`), Node ≥ 22.22, PostgreSQL 17 via Homebrew (`brew services start postgresql@17`) with databases `eneba` (dev) and `eneba_test` (tests).
+
+Backend (`backend/`):
+- `composer install` then `cp .env.example .env` and `php artisan key:generate` (first time)
+- `php artisan migrate` (dev database)
+- `php artisan serve` → http://localhost:8000 (health: `/api/health`)
+- `php artisan test` (always runs on `eneba_test`, forced in `phpunit.xml`)
+
+Frontend (`frontend/`):
+- `npm install` then `cp .env.example .env.local` (first time)
+- `npm run dev` → http://localhost:5173
+- `npm run build` (type check + production build), `npm run lint` (oxlint)
+
+## Deployment
+- Frontend: https://eneba-marketplace.vercel.app (Vercel, root `frontend`, env `VITE_API_URL`)
+- Backend: https://eneba-marketplace-api.onrender.com (Render, Docker, root `backend`, Frankfurt, health check `/api/health`)
+- Database: Neon (Frankfurt), direct connection string in Render's `DB_URL`
+- Both redeploy automatically on push to `main`. Migrations run on container start (see `docs/DECISIONS.md`, D19).
+- Secrets (`APP_KEY`, `DB_URL`) live only in the Render dashboard. Never paste them into the chat: transcripts are submitted.
