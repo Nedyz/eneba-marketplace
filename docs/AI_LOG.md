@@ -111,3 +111,22 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 **Open issues**
 - Turn on Render "After CI Checks Pass" (Nedas, in the dashboard).
 - Theme tokens and layout shell next.
+
+## Session 5 — 9 November 2026 (evening): theme tokens and layout shell (day 2)
+
+**Done**
+- Measured eneba.com in a Playwright browser (computed styles at 1440 px and 390 px): Metropolis font, purple palette, yellow accent, square corners, header and category bar sizes, 1200 px content width.
+- Tailwind v4 `@theme` tokens with semantic names; Metropolis self-hosted via `@fontsource`.
+- Layout shell: sticky header (Intersheba wordmark, search box (visual until day 3), cart, sign in), category bar fed by `/products/filters`, footer with the "not affiliated with Eneba" note, mobile header with a search toggle, server waking banner. `/` is a placeholder until the day 4 homepage; health page at `/health`. Page title and favicon changed to Intersheba.
+- Checked with screenshots against Eneba at both widths, a simulated 6 s cold start, and keyboard tab order.
+
+**Decisions**
+- D27: measured tokens, Metropolis (public domain), deliberate differences from Eneba.
+
+**Problems found and fixed**
+- Page content started 20 px further in than Eneba's (the 1200 px width included the padding); fixed.
+- oxlint flagged `setState` inside an effect in the banner; the rewrite also fixed the timer restarting whenever the number of requests changed during a cold start.
+- The search input had no visible keyboard focus (`outline-none`); the box now shows the focus ring via `focus-within`.
+
+**Open issues**
+- Day 3: search (trigram search, suggestions, `q` in the store), store page with URL state, header autocomplete.

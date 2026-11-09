@@ -79,7 +79,7 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 - **Verified on the free tier (9 Nov, commits `9b117e4` and revert `3cfa357`)**: a migration running `SELECT 1/0` was pushed on purpose.
   - CI's `docker` job caught it first: the container stopped during startup with `SQLSTATE[22012]: Division by zero`.
   - Render did not auto-deploy that commit (cause unknown, see below), so it was deployed manually. The deploy failed about 1 minute after it started ("Exited with status 1 while running your code"). The error was in the Render logs, and Render did not retry.
-  - The previous version kept serving: an external check every 10 seconds (90 checks of `/api/health` and `/api/products` over 16 minutes, including the failed deploy) never saw anything but 200.
+  - The previous version kept serving: an external check every 10 seconds (141 checks of `/api/health` and `/api/products` over 25 minutes, covering the push, the failed deploy and the revert) never saw anything but 200.
   - Neon afterwards: no row for the failed migration in `migrations`, still 16 migrations. The transaction rolled back as expected.
 - **Unexplained, one-off**: Render did not auto-deploy `9b117e4` (Auto-Deploy "On Commit", no build filters, not CI gating: the previous deploy started before its CI finished). The revert `3cfa357` auto-deployed normally. Lesson: after a push, confirm in Render's Events that a deploy actually started.
 
@@ -134,3 +134,11 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 ## D26. The app is called "Intersheba", not "Eneba" (9 Nov)
 - **Decision (Nedas)**: the app copies Eneba's look and has sign-in and checkout, so a public site branded "Eneba" could be mistaken for the real store. The visible name is "Intersheba" (a text wordmark, no Eneba logo or assets), and the footer says it is an Eneba internship assignment, not affiliated with Eneba.
 - **Scope**: user-visible branding (wordmark, page title, footer). Internal names (repository, service URLs, database names) stay as they are.
+
+## D27. Theme tokens measured from eneba.com; layout shell (9 Nov)
+- **Method**: eneba.com opened in a Playwright browser; colors, font, sizes and spacing read with `getComputedStyle` (desktop 1440 px and mobile 390 px). The values are Tailwind v4 `@theme` tokens with semantic names (`bg-surface`, `text-muted`, `bg-accent`...), each commented with the element it was measured from. No Eneba logo, icons or images are used (D14, D26).
+- **Font**: Eneba uses Metropolis, which is public domain (Unlicense), so the app uses the same font, self-hosted via `@fontsource/metropolis` (no font CDN request).
+- **Accessibility**: every measured text/background pair passes WCAG AA (lowest: muted `#B3AAC9` on page purple, 4.79:1), so no color had to be changed. Keyboard focus is a 2 px yellow outline; the search box shows it around the whole box.
+- **Layout**: sticky header (wordmark, outlined search, cart, sign in), a category bar listing platforms from `GET /products/filters` (only platforms that have products), footer stating the project is an Eneba internship assignment, not affiliated with Eneba. Mobile follows Eneba: one 56 px icon row, search opens below it.
+- **Server waking banner**: shown when API requests have been running continuously for more than 3 seconds (Render free tier cold start), built once in the shell. Verified by delaying API responses by 6 s in the browser: hidden at 1 s, shown at 4 s, gone after the response.
+- **Deliberate differences from Eneba**: the search box fills the free space (Eneba's sits next to language and wishlist controls the app does not have); no language/currency selector or wishlist (EUR only, D12).
