@@ -1,0 +1,3 @@
+/* Tailwind v4: one import, no tailwind.config.js. Eneba's colors and fonts
+   will be added on day 2 as theme tokens in an @theme block in this file. */
+@import "tailwindcss";

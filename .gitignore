@@ -15,3 +15,6 @@ frontend/dist/
 .idea/
 .vscode/
 *.log
+
+# Browser test artifacts (Playwright MCP snapshots and logs)
+.playwright-mcp/
