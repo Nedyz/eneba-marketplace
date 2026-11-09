@@ -1,12 +1,18 @@
 <?php
 
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Every route in this file is automatically prefixed with /api.
 
 Route::get('/health', HealthController::class);
+
+// Catalog. /products/filters is registered before /products/{slug} (day 4),
+// otherwise "filters" would be read as a product slug.
+Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/filters', [ProductController::class, 'filters']);
 
 // Laravel default, replaced by /auth/me on day 5.
 Route::get('/user', function (Request $request) {
