@@ -1,3 +1,58 @@
-/* Tailwind v4: one import, no tailwind.config.js. Eneba's colors and fonts
-   will be added on day 2 as theme tokens in an @theme block in this file. */
+/* Tailwind v4: theme tokens live here in @theme, no tailwind.config.js.
+   Every token becomes a utility class: --color-surface -> bg-surface, text-surface...
+
+   Values were measured on eneba.com on 9 Nov 2026 with getComputedStyle
+   (DECISIONS.md D14, D27). Components use these names, never raw hex values,
+   so a design correction is a one-line change here. No Eneba assets are used:
+   only measured colors, sizes and the open-licensed Metropolis font. */
 @import "tailwindcss";
+
+/* Metropolis: the font eneba.com uses. Public domain (Unlicense), self-hosted
+   via @fontsource, so no request to a font CDN. Only the weights Eneba uses. */
+@import "@fontsource/metropolis/400.css";
+@import "@fontsource/metropolis/600.css";
+@import "@fontsource/metropolis/700.css";
+@import "@fontsource/metropolis/800.css";
+
+@theme {
+  --font-sans: "Metropolis", Arial, Helvetica, sans-serif;
+
+  /* Surfaces */
+  --color-bg: #4618ac;              /* page background (body) */
+  --color-bg-deep: #351183;         /* darker purple panels */
+  --color-surface: #1f0a4d;         /* product card */
+  --color-bar: rgb(0 0 0 / 0.25);   /* category bar under the header, over --color-bg */
+  --color-footer: rgb(0 0 0 / 0.7); /* footer, over --color-bg */
+
+  /* Text (contrast on --color-bg / --color-surface checked: all >= 4.5:1, WCAG AA) */
+  --color-text: #ffffff;
+  --color-text-soft: #dcd8e6;       /* nav and footer links */
+  --color-text-muted: #b3aac9;      /* "From", crossed-out price */
+
+  /* Accents */
+  --color-accent: #fad318;          /* primary button ("Add to cart"), black text */
+  --color-accent-hover: #ffe04d;    /* not measured: lighter shade for hover */
+  --color-discount: #84e916;        /* "-9%" */
+  --color-success: #23c299;
+
+  /* Type scale additions (Eneba sizes not in Tailwind's default scale) */
+  --text-button: 0.9375rem;         /* 15px, buttons and header links, weight 800 */
+  --text-price: 1.375rem;           /* 22px, card price, weight 800 */
+
+  /* Page width 1240px = 1200px content + 20px padding each side (PageContainer
+     px-5), as Eneba's header: content starts at x=120 on a 1440px screen. */
+  --container-page: 77.5rem;
+}
+
+/* Eneba uses square corners everywhere: we simply never use rounded-* classes. */
+
+@layer base {
+  body {
+    @apply bg-bg font-sans text-text antialiased;
+  }
+
+  /* Visible keyboard focus on the dark purple background. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+}
