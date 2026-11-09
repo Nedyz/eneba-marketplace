@@ -69,3 +69,10 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 - **Context**: checked in Sanctum's source: the `personal_access_tokens` table stores only a SHA-256 hash of each token (the plain token is returned once as `{id}|{random}`, compared with `hash_equals`). A copied table therefore cannot be used to log in; a fast hash is enough because the token is 40 random characters, unlike a guessable password. But `config/sanctum.php` defaults to `'expiration' => null`, so a token stolen from the browser (see D7) would work forever.
 - **Decision**: `expiration` = 7 days (10080 minutes); logout deletes the current token row, so it stops working immediately. Both covered by tests.
 - **Gave up**: users sign in again after a week. No refresh tokens (not worth the complexity here).
+
+## D19. Migrations run at container start; a failed migration keeps the old version live (9 Nov)
+- **Context**: Render's pre-deploy command (the usual place for migrations) is paid-only. Nedas asked what happens on Render if a migration fails during startup.
+- **Decision**: the Docker image (serversideup/php) runs `migrate --force` and `optimize` on every start. If a step fails, the container exits before nginx starts.
+- **What happens on failure**: Render only switches traffic to a new instance after it passes the health check (`/api/health`), and cancels the deploy after 15 minutes otherwise, so the previous version keeps serving. Render's docs do not describe free-tier differences, so we will confirm this once on day 2 with a deliberately broken deploy. On PostgreSQL each migration runs in its own transaction (checked in Laravel's `Migrator`), so the failed migration leaves no half-applied change; earlier migrations from the same deploy stay applied.
+- **Rule that follows**: migrations must be backward compatible (add columns or tables first, remove old ones in a later deploy), because the old code may run against the new schema after a partial failure.
+- **Gave up**: every cold start (free tier spins down after 15 minutes idle) also runs the migration check, adding about a second to wake-up.
