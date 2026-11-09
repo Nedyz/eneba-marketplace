@@ -26,8 +26,9 @@ class HealthCheckTest extends TestCase
 
     public function test_it_reports_degraded_when_pg_trgm_is_missing(): void
     {
-        // Rolled back after the test, so the extension comes back.
-        DB::statement('DROP EXTENSION pg_trgm');
+        // CASCADE: the products trigram index depends on the extension, so a plain
+        // DROP is refused. Rolled back after the test, so both come back.
+        DB::statement('DROP EXTENSION pg_trgm CASCADE');
 
         $this->getJson('/api/health')
             ->assertStatus(503)
