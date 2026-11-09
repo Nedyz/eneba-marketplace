@@ -1,0 +1,187 @@
+# Continuous integration: runs on every push to main and every pull request.
+# Three independent jobs (they run in parallel):
+#   backend  - formatting, tests and a migration round trip on real PostgreSQL
+#   frontend - lint, type check and production build
+#   docker   - builds the production image and starts it like Render does
+# Decisions: docs/DECISIONS.md D25.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch cancels the run still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only token: CI never needs to write to the repository.
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    # Real PostgreSQL, because search needs pg_trgm (not available in SQLite).
+    # The official image includes pg_trgm. phpunit.xml forces the eneba_test database.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: eneba_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4' # same as local (Herd Lite) and the production image
+          extensions: pdo_pgsql
+          coverage: none
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Check formatting (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Run tests
+        run: php artisan test
+
+      # Every migration must apply, roll back and apply again cleanly (D19:
+      # migrations run on every container start, so a broken down() or a
+      # migration that only works on an empty database would hurt later).
+      - name: Migration round trip
+        env:
+          DB_DATABASE: eneba_test
+        run: |
+          php artisan migrate:fresh --force
+          php artisan migrate:reset --force
+          php artisan migrate --force
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc # 26, same as Vercel
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+
+      # tsc -b (type check) + vite build. The URL is baked into the bundle at build
+      # time, like on Vercel; any value works for a build check.
+      - name: Type check and build
+        run: npm run build
+        env:
+          VITE_API_URL: https://example.invalid/api
+
+  # No local Docker on the dev machine (PLAN.md risk 6): this job is the closest
+  # thing to a Render deploy before pushing. It builds the image, starts it
+  # against an empty database and checks that the first start migrates and seeds,
+  # and that a second start skips the seed (D20).
+  docker:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: eneba
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Layer cache in GitHub's cache: unchanged layers (e.g. composer install when
+      # composer.lock did not change) are not rebuilt.
+      - name: Build production image
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          load: true
+          tags: eneba-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --network host: the container reaches the Postgres service on 127.0.0.1.
+      # Throwaway APP_KEY, generated per run (never a real secret).
+      # DB_SSLMODE=disable: the Dockerfile requires SSL for Neon; this local
+      # Postgres has none.
+      - name: Start container (first start = empty database)
+        run: |
+          docker run -d --name api --network host \
+            -e APP_KEY="base64:$(openssl rand -base64 32)" \
+            -e APP_URL=http://localhost:8080 \
+            -e FRONTEND_URL=http://localhost:5173 \
+            -e DB_HOST=127.0.0.1 -e DB_PORT=5432 -e DB_DATABASE=eneba \
+            -e DB_USERNAME=postgres -e DB_PASSWORD=postgres \
+            -e DB_SSLMODE=disable \
+            eneba-api:ci
+
+      - name: Wait for health check
+        run: ./.github/scripts/wait-for-health.sh
+
+      - name: First start seeded the demo catalog
+        run: |
+          total=$(curl -fsS 'http://localhost:8080/api/products?per_page=1' | jq '.meta.total')
+          echo "products: $total"
+          test "$total" = "105"
+
+      - name: Restart container (second start = existing data)
+        run: |
+          docker restart api
+          ./.github/scripts/wait-for-health.sh
+
+      - name: Second start skipped the seed
+        run: |
+          total=$(curl -fsS 'http://localhost:8080/api/products?per_page=1' | jq '.meta.total')
+          echo "products: $total"
+          test "$total" = "105"
+
+      # Always printed, so the full startup output can be compared with Render's logs.
+      - name: Container log
+        if: always()
+        run: docker logs api 2>&1
