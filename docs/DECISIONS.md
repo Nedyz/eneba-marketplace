@@ -94,3 +94,25 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 - `regions` uses `slug` instead of `code`, like `platforms`.
 - Status columns are `varchar` + CHECK (Laravel `enum()`), not native PostgreSQL enums, so adding a value stays a simple, backward-compatible change (D19). Business rules (positive prices, deal cheaper than original, sold/reserved key always linked to an order item) are CHECK constraints, so even a bug in a service cannot store inconsistent rows.
 - Order data restricts deletes (an ordered offer or a user with orders cannot be deleted); catalog children cascade.
+
+## D23. The store's "from" price is computed on read, with indexes chosen by benchmark (9 Nov)
+- **Definition**: cheapest active offer with at least one sellable key (`available`, or `reserved` with `reserved_until` in the past). Computed with a `LEFT JOIN LATERAL` per product, which also returns that same offer's original price for the discount badge. The sellable-key rule is one scope (`ProductKey::scopeSellable`), reused by checkout on day 5 so store and checkout never disagree about stock. The current time is passed from PHP so tests can move the clock.
+- **Why not store it on `products`**: stock changes over time without any write (an expired reservation becomes sellable again, D10), so a stored price would be stale until something touched the product. Keeping it correct would need a cron job, which the free tier does not have.
+- **Benchmark** (local PostgreSQL 17, 50k products / 200k offers / 1M keys, throwaway database, best of 5 runs):
+
+  | Request | Before | After |
+  |---|---|---|
+  | `newest` page + count | 153 + 144 ms | 0.4 + 3 ms |
+  | `price_asc` page + count | 155 + 145 ms | 71 + 1.3 ms |
+  | platform + price range page + count | 39 + 37 ms | 13 + 11 ms |
+
+  What changed, each found with `EXPLAIN ANALYZE`: an index matching the `newest` and `name` sorts (Postgres reads 24 products in order and prices only those, instead of pricing all 50k and keeping 24); `id` added to the offers price index (removed a sort per product); a partial index on unsold keys (sold keys pile up forever); and a separate count that skips the price join unless a price filter is set.
+- **Remaining limit**: sorting by price cannot use an index, because the price is computed. Every product matching the other filters is priced on each request: about 70 ms at 50k products, growing linearly. Fine for this catalog (105 products). Scaling path: eager reservation expiry (cron), then a stored, indexed from price updated in the same transactions that change offers and keys.
+- **Detail**: `is_active` is written as a literal condition, not a bound parameter, so Postgres can always match the partial index.
+
+## D24. Store listing behavior (9 Nov)
+- Out-of-stock products stay in the store with `price: null` (Nedas's choice): the catalog stays complete and search can still find sold-out games. They sort last in both price orders, and drop out when a price filter is set.
+- Products without a release date sort last in `newest` (Nedas's request; PostgreSQL puts NULLs first on DESC by default).
+- Every sort ends with `products.id`, so offset pagination (D13) never shows a product twice or skips one.
+- Prices in the API are integer cents (D12); the frontend converts to euros.
+- `/products/filters` returns the same options for every request (not narrowed by the active filters), only platforms and regions that have products, and the min/max from price for the slider.

@@ -66,3 +66,28 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 **Open issues**
 - Not deployed yet: the first deploy with this change seeds Neon. Check the Render logs for the seeder output.
 - Rest of day 2: CI, catalog API, theme tokens, layout shell, D19 broken-migration check.
+
+## Session 3 — 9 November 2026 (evening): catalog API (day 2)
+
+**Done**
+- Plan agreed first, focused on how the "from" price is calculated and kept fast.
+- `GET /api/products`: from price via `LEFT JOIN LATERAL` (cheapest active offer with a sellable key), platform/region/price filters, sorts `newest`/`price_asc`/`price_desc`/`name` with `NULLS LAST` and an `id` tie-breaker, paginated `JsonResource` output.
+- `GET /api/products/filters`: platforms and regions that have products, min/max from price.
+- Structure: `ProductIndexRequest` → `ProductController` → `Services/Catalog/ProductQuery` (+ `ProductFilters`, `ProductSort` enum, `CatalogFilterOptions`) → `ProductListResource`. `ProductKey::scopeSellable` as the single definition of stock.
+- Factories for the catalog models (offers start without keys; `withKeys()`, `sold()`, `reserved($until)`).
+- 27 new tests (46 total). Mutation checks: removing the `id` tie-breaker or `NULLS LAST` makes tests fail.
+- Benchmark at 50k products / 1M keys: four indexes and a separate count query took the default listing from ~300 ms to ~3 ms, price sorts from ~300 ms to ~72 ms (D23).
+
+**Decisions**
+- D23: from price computed on read (stored price would go stale because reservations expire without writes); benchmark results and remaining limit.
+- D24: out-of-stock products listed last; undated products last in `newest`; API prices in cents; non-faceted filter options.
+
+**Problems found and fixed**
+- `gte:price_min` rejected `price_max` sent alone (Laravel's `gte` fails when the other field is missing); caught by a test, rule now conditional.
+- Factory states read `offer_id` before `->for($offer)` was resolved; moved to `afterCreating`.
+- Benchmark showed `newest` and every count priced all 50k products; fixed with sort-matching indexes and a separate count.
+- A migration renamed after being applied locally was never re-run (output hidden with `-q`); fixed by cleaning the local migration row. Not pushed, so production was unaffected.
+
+**Open issues**
+- Search (`q`, relevance sort, suggestions) on day 3 plugs into `ProductQuery`.
+- Theme tokens, layout shell, CI and the D19 broken-migration check are still open for day 2 (plus checking whether serversideup hides artisan output in Render logs).

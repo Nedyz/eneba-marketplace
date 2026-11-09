@@ -119,7 +119,7 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 | GET | `/home/banners` | | Banner block content |
 | GET | `/home/best-sellers` | | Top products by units sold in the last 30 days |
 | GET | `/home/deals` | | Top offers by discount % |
-| GET | `/products` | | Store and search: `q, platform[], region[], price_min, price_max, sort, page, per_page` |
+| GET | `/products` | | Store and search: `q, platform[], region[], price_min, price_max` (cents), `sort` (`newest`, `price_asc`, `price_desc`, `name`; `relevance` on day 3), `page, per_page` (24, max 60). From price: see D23. |
 | GET | `/products/filters` | | Available platforms, regions, price range |
 | GET | `/products/{slug}` | | Product with offers, cheapest first |
 | GET | `/search/suggestions?q=` | | Autocomplete, 6 to 8 matches |
