@@ -177,6 +177,7 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 - Removing a filter chip dropped keyboard focus to `<body>`; focus now moves to the result count.
 - Pagination highlighted the page from the previous response while the next one loaded; now uses the URL's page.
 - Suggestion thumbnails rendered full width: a caller's `w-9` lost to the built-in `w-full` (Tailwind resolves conflicting classes by stylesheet order). `ProductCover` no longer takes a `className`; its `size` sets the width.
+- CI failed on the first PR run: `api/client.ts` throws at import without `VITE_API_URL` (on purpose), and Vitest had silently read the developer's `.env.local`. Tests now get a fixed placeholder URL in `vite.config.ts` (`test.env`), so they no longer depend on local files; verified by running them with the variable emptied and without `.env.local`.
 
 **Open issues**
 - Checkbox ticks appear ~27 ms after the click (React Router updates as a transition); not noticeable, `flushSync` would remove it.
