@@ -22,6 +22,28 @@ export interface ProductPrice {
   currency: 'EUR'
 }
 
+/**
+ * Mirrors backend ProductDetailResource: the card's fields (same `price`, from
+ * the same backend code) plus the description and the offers.
+ */
+export interface ProductDetail extends ProductSummary {
+  description: string
+  /** Display order from the API: in stock first, then price, then offer id (D30). */
+  offers: Offer[]
+}
+
+/** Mirrors backend OfferResource: one seller's price for a product. */
+export interface Offer {
+  id: number
+  seller: { id: number; name: string; rating: number }
+  price_cents: number
+  original_price_cents: number | null
+  discount_percent: number | null
+  currency: 'EUR'
+  /** Number of sellable keys; 0 = sold out. */
+  stock: number
+}
+
 /** Laravel's paginated resource collection (only the fields we use). */
 export interface Paginated<T> {
   data: T[]
@@ -66,6 +88,15 @@ export function getSuggestions(term: string, signal?: AbortSignal): Promise<Prod
   )
 }
 
+/** Rejects with ApiError status 404 for an unknown slug. */
+export function getProduct(slug: string, signal?: AbortSignal): Promise<ProductDetail> {
+  // encodeURIComponent: the slug comes from the browser URL (untrusted), and must
+  // stay one path segment ("../health" must not reach another endpoint).
+  return apiGet<{ data: ProductDetail }>(`/products/${encodeURIComponent(slug)}`, { signal }).then(
+    (response) => response.data,
+  )
+}
+
 /**
  * Query keys. The store key holds the parsed, canonical params, so URLs that
  * differ only in order or defaults share one cache entry.
@@ -73,4 +104,5 @@ export function getSuggestions(term: string, signal?: AbortSignal): Promise<Prod
 export const productQueryKeys = {
   list: (params: StoreParams) => ['products', 'list', params] as const,
   suggestions: (term: string) => ['search', 'suggestions', term] as const,
+  detail: (slug: string) => ['products', 'detail', slug] as const,
 }

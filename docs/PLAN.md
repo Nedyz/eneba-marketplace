@@ -10,7 +10,7 @@ Browser ──► Vercel (React SPA) ──HTTPS/JSON──► Render (Laravel A
 ```
 
 - **Frontend**: React + TypeScript (Vite), React Router, Tailwind CSS, TanStack Query for server state.
-  Store filters, sorting, page and search query live in the URL (`useSearchParams`). The cart lives in React context, persisted to `localStorage`.
+  Store filters, sorting, page and search query live in the URL (`useSearchParams`). The cart lives in `localStorage`, read through a small store with `useSyncExternalStore` (D31).
 - **Backend**: Laravel, JSON API only. Layers: Controller (thin) → Service (business logic) → Eloquent model.
   Validation in `FormRequest` classes, response shape in `JsonResource` classes.
 - **Auth**: Laravel Sanctum personal access tokens (bearer), because frontend and backend are on different sites.
@@ -28,7 +28,7 @@ eneba-marketplace/
 │   │   ├── Models/
 │   │   ├── Services/
 │   │   │   ├── Catalog/        # ProductQuery, SearchService
-│   │   │   ├── Home/           # HomeLayoutService, BannerService, BestSellersService, DealsService
+│   │   │   ├── Home/           # HomeLayout, HomeBanners, BestSellers, Deals
 │   │   │   └── Checkout/       # CheckoutService (reserve, pay, expire)
 │   │   └── Payments/           # PaymentGateway interface, FakePaymentGateway
 │   ├── database/{migrations,seeders,factories}/
@@ -84,6 +84,7 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 - Unknown block types are skipped, so an old frontend never crashes on a new block type.
 - Which blocks appear, their order and their titles are all decided in the database. A new block ("New releases") with an existing type needs only a `home_blocks` row and a backend service, with no frontend change.
 - Endpoints are stored as paths relative to the API base, and the frontend only requests them under the API base URL, so a bad database row cannot make the browser call another host.
+- Contract per type: a `banner` endpoint returns `{data: Banner[]}`, a `product_carousel` endpoint returns `{data: ProductSummary[]}` (the store card, `ProductListResource`). Banner links are frontend routes in the store's URL format (`/store?platform=steam`); a banner whose link is not a same-site path is not shown. Details: D32.
 
 ## Checkout and key assignment
 
@@ -116,15 +117,15 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 | POST | `/auth/logout` | yes | Revoke token |
 | GET | `/auth/me` | yes | Current user |
 | GET | `/home` | | Homepage layout (list of blocks) |
-| GET | `/home/banners` | | Banner block content |
-| GET | `/home/best-sellers` | | Top products by units sold in the last 30 days |
-| GET | `/home/deals` | | Top offers by discount % |
+| GET | `/home/banners` | | Active banners inside their `[starts_at, ends_at)` window, by position |
+| GET | `/home/best-sellers` | | 12 in-stock products by units sold in the last 30 days, remaining places filled by all-time units (D32) |
+| GET | `/home/deals` | | 12 products whose card price (from-price offer) is discounted, largest discount first (D32) |
 | GET | `/products` | | Store and search: `q, platform[], region[], price_min, price_max` (cents), `sort` (`newest`, `price_asc`, `price_desc`, `name`, `relevance`; default `relevance` when `q` is set, see D28), `page, per_page` (24, max 60). From price: see D23. |
 | GET | `/products/filters` | | Available platforms, regions, price range |
-| GET | `/products/{slug}` | | Product with offers, cheapest first |
+| GET | `/products/{slug}` | | Product with its active offers: in stock first, then price, then offer id (D30) |
 | GET | `/search/suggestions?q=` | | Autocomplete: up to 8 editions, same match and ranking as the store, `q` 2 to 100 characters |
-| POST | `/cart/quote` | | Current prices and stock for `[{offer_id, qty}]` |
-| POST | `/orders` | yes | Create pending order, reserve keys |
+| POST | `/cart/quote` | | Current prices, stock and per-line status (`available`, `insufficient_stock`, `sold_out`, `unavailable`) for `[{offer_id, qty}]` (1 to 50 lines, qty 1 to 10), the total of the available lines and `can_checkout` (D31) |
+| POST | `/orders` | yes | Create pending order, reserve keys. Body includes `expected_total_cents`; a different recalculated total → `409 price_changed` (D31) |
 | POST | `/orders/{id}/pay` | yes | Simulated payment |
 | GET | `/orders` | yes | Order history, paginated |
 | GET | `/orders/{id}` | yes, owner | Order detail, keys if paid |

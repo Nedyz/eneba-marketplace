@@ -22,16 +22,17 @@ class HomeSeeder extends Seeder
             ['type' => 'product_carousel', 'title' => 'Deals', 'endpoint' => '/home/deals', 'position' => 3, 'is_active' => true],
         ]));
 
-        // Links are frontend routes into the store (search lives in the store, D6).
+        // Links are frontend routes into the store (search lives in the store, D6),
+        // in the store's own URL format (D29): platform=steam, not the API's platform[]=steam.
         DB::table('banners')->insert(array_map(fn ($b) => $b + $stamps + [
             'image_url' => null, 'is_active' => true, 'starts_at' => null, 'ends_at' => null,
         ], [
             ['title' => 'Steam keys for less', 'subtitle' => 'Compare offers from trusted sellers and save on PC games.',
-                'cta_label' => 'Browse Steam', 'link_url' => '/store?platform[]=steam', 'position' => 1],
+                'cta_label' => 'Browse Steam', 'link_url' => '/store?platform=steam', 'position' => 1],
             ['title' => 'Play together', 'subtitle' => 'Split Fiction, It Takes Two and more co-op adventures.',
                 'cta_label' => 'Find co-op games', 'link_url' => '/store?q=split+fiction', 'position' => 2],
             ['title' => 'Nintendo favourites', 'subtitle' => 'Zelda, Mario Kart and Animal Crossing keys for Switch.',
-                'cta_label' => 'Shop Nintendo', 'link_url' => '/store?platform[]=nintendo', 'position' => 3],
+                'cta_label' => 'Shop Nintendo', 'link_url' => '/store?platform=nintendo', 'position' => 3],
         ]));
     }
 }

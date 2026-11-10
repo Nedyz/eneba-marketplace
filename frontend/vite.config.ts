@@ -13,6 +13,9 @@ export default defineConfig({
     // Tests get a fixed placeholder instead of whatever is in a developer's
     // .env.local, so they behave the same locally and in CI. Unit tests never
     // make real requests, so the host does not need to exist.
-    env: { VITE_API_URL: 'http://api.test/api' },
+    //
+    // TZ: tests run west of UTC (CI runs in UTC, this Mac east of it), so a date
+    // formatted in local time instead of UTC shows the previous day and fails.
+    env: { VITE_API_URL: 'http://api.test/api', TZ: 'America/New_York' },
   },
 })

@@ -21,8 +21,8 @@ interface ProductCoverProps {
   name: string
   platformSlug: string
   imageUrl: string | null
-  /** "lg": store and homepage cards; "sm": thumbnails (search suggestions). */
-  size?: 'sm' | 'lg'
+  /** "lg": store and homepage cards; "md": cart lines; "sm": thumbnails (search suggestions). Only "lg" prints the title. */
+  size?: 'sm' | 'md' | 'lg'
 }
 
 /**
@@ -30,7 +30,7 @@ interface ProductCoverProps {
  * next to a built-in "w-full" would be decided by stylesheet order, not by
  * which class comes last in the string (Tailwind does not merge classes).
  */
-const SIZE_CLASSES = { lg: 'w-full', sm: 'w-9 shrink-0' } as const
+const SIZE_CLASSES = { lg: 'w-full', md: 'w-16 shrink-0', sm: 'w-9 shrink-0' } as const
 
 export function ProductCover({ name, platformSlug, imageUrl, size = 'lg' }: ProductCoverProps) {
   // Decorative: the product name is always in the text next to the cover.

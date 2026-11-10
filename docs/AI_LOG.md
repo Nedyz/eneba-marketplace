@@ -183,3 +183,67 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 - Checkbox ticks appear ~27 ms after the click (React Router updates as a transition); not noticeable, `flushSync` would remove it.
 - Day 6 polish: the generated cover repeats the card title; long names are truncated next to discounted prices in mobile suggestions; optional price slider.
 - Product links lead to the 404 page until the product page exists (day 4).
+
+## Session 8 — 10 November 2026: product page (day 4, session 1)
+
+**Done**
+- Branch `day4` created; sessions 2 (cart) and 3 (homepage) continue on it. The PR is opened now so CI runs on every push, and is merged by the homepage session (Nedas's choice).
+- Plan agreed first, with the offer order and sold-out handling explained before any code.
+- Backend: `GET /products/{slug}` (`ProductDetails` service, `ProductDetailResource` extending the card resource, `OfferResource`). Discount rounding moved to `App\Support\Discount`, shared by card and offers. 17 feature tests (backend suite: 90); each rule mutation-checked.
+- Frontend: `/product/:slug` with cover, facts, from price, description and `OfferList` ("Best price" on the first in-stock row, sold-out rows dimmed, "Only N left" at 5 or fewer). Loading skeleton, "Game not found" page (404 not retried), retry on other errors, tab title via React 19 `<title>`.
+- Vitest: stock labels and date formatting (65 tests).
+- Checked in a real browser (Playwright) on the seed: a cheaper sold-out offer below an in-stock one (Forza Horizon 5), a same-price tie ordered by id and matching the store card (GTA V), the 404 page with a single request, desktop and mobile, new text colors contrast-checked (lowest 4.79:1).
+
+**Decisions**
+- D30: in stock first, then price, then offer id (matches the store's tie-break); sold-out offers kept and dimmed, inactive offers excluded.
+
+**Problems found and fixed**
+- `formatDate("2022-02-25")` showed 24 February west of UTC (date-only strings parse as UTC midnight). Formatter fixed to UTC. The test could not catch the bug, because CI runs in UTC and this Mac east of it, so Vitest now runs in `America/New_York`; the test was confirmed to fail without the fix.
+- While mutation-testing the date fix, `git checkout` on the not-yet-committed `format.ts` reset it to `main` (removing `formatDate`); restored from a saved copy before committing, all checks rerun.
+
+**Open issues**
+- No add to cart yet (session 2); the offer row leaves room on the right for the button.
+- The seed has no product whose offers are all sold out; that case is covered by a backend test only.
+
+## Session 9 — 10 November 2026: cart (day 4, session 2)
+
+**Done**
+- Plan agreed first, starting with what happens when an offer's price changes or it sells out while in a cart. Nedas approved all four recommendations: problem lines block checkout with no automatic cart changes, 10 per line, price notes once per detection in both directions, `expected_total_cents` on `POST /orders` recorded now and built on day 5.
+- Backend: `POST /cart/quote` (`CartQuoteRequest`, `Services/Cart/CartQuoter` with `CartQuote`/`CartQuoteLine` value objects and a `CartLineStatus` enum, two resources, `CartController`). 28 feature tests (backend suite: 118); 12 rules mutation-checked.
+- Frontend: cart rules as pure functions (`cartStorage.ts`, `priceChanges.ts`, 40 Vitest tests, suite: 105), a `useSyncExternalStore` cart store synced with localStorage and other tabs, add to cart on offer rows, cart count in the header, and the `/cart` page.
+- Checked in a real browser (Playwright) on the local seed, with offers changed by SQL and restored afterwards: stock cap on add, price rise and drop notes (gone after reload), partial sell-out with "Change to 1", full sell-out and a withdrawn offer blocking checkout, the line coming back when the reservation expired, refetch when the tab becomes visible, two-tab sync, render order differing from quote order, empty cart, mobile.
+- Moved the day 4 session 1 transcript to `ai-logs/2026-11-10-day4-product-page.md` (it had been exported as a directory with a newline in its name). Content checked complete, left uncommitted for Nedas's end-of-day transcript commit.
+
+**Decisions**
+- D31: browser keeps offer id, quantity and a display snapshot; the server quotes prices, stock, status and total; problem lines block checkout; the quote request (sorted pairs) is the cache key, so lines are matched by offer id; a module store instead of the React context in PLAN.md.
+
+**Problems found and fixed**
+- oxlint flagged `setState` inside the effect that records price notes. The notes moved into the cart store, so the effect only pushes the fresh quote into an external store.
+- Two of my own test mistakes during browser checks (the app was right both times): a `visibilitychange` dispatched on `document` never reaches TanStack Query's listener on `window`; and a reservation written with psql's `now()` was stored in Vilnius time in a UTC column, so it looked two hours longer to the app. Writing `now() at time zone 'UTC'` fixed the check.
+
+**Open issues**
+- `/checkout` does not exist yet, so the enabled Checkout button leads to the 404 page until day 5.
+- In development, each cart page load sends one quote that is aborted and repeated (StrictMode's double mount); production sends one.
+- The header count can include lines that are no longer buyable until the cart page is opened.
+
+## Session 10 — 10 November 2026: homepage blocks (day 4, session 3)
+
+**Done**
+- Plan agreed first. Scope: `GET /home` plus the three block endpoints its seeded layout points to (without them the page has nothing to render). Nedas's answers: sold-out best sellers left out, 12 per block, and a new requirement: fill Best sellers with all-time sales when the 30-day window has fewer than 12, because production's seeded orders age out of the window around 9 December.
+- Backend: `Services/Home` (`HomeLayout`, `HomeBanners`, `BestSellers`, `Deals`), `HomeController`, `HomeBlockResource`, `BannerResource`, four routes. 34 feature tests in `tests/Feature/Home` plus 2 in `DemoSeedTest` (backend suite: 154); 23 rules mutation-checked.
+- Frontend: `api/home.ts`, `features/home` (`HomePage`, `blockRegistry`, `BannerBlock`, `ProductCarouselBlock`, `BlockLoadError`, pure rules in `homeBlocks.ts` with 16 Vitest tests, suite: 121), `ArrowButton`. Carousels reuse `ProductCard`. `HomePlaceholder` removed.
+- Checked in a real browser (Playwright) on the local seed, desktop and mobile: banner stepping, wrap-around and dots, carousel scroll buttons, the banner CTA opening a Steam-filtered store; then, by SQL (restored and diffed afterwards): reorder, rename, unknown type skipped, a second carousel row with no frontend change, expired banner, external banner link skipped, a 404 endpoint showing a per-block retry, no active blocks.
+- Measured the new queries on the 50k-product benchmark database (dropped afterwards).
+
+**Decisions**
+- D32: best sellers ranked `recent_units DESC, total_units DESC, id` in one aggregate (the all-time fill); deals ranked by the card's offer, not any discounted offer; no banner autoplay; same-site banner links only; costs at scale recorded, not optimized.
+
+**Problems found and fixed**
+- The day 2 seed linked banners to `/store?platform[]=steam` (API syntax); the store reads `platform=steam`. Fixed in the seeder and, for production's already-seeded rows, by a data migration.
+- The carousel widened the whole page (962 px of sideways scroll): the cards' absolutely positioned `sr-only` labels escaped the scroller's overflow clip. Fixed with `relative` on the scroller.
+- Two quick Next clicks moved one banner (stale index); fixed with a functional state update.
+- Two mutation-test mistakes of my own: one replacement hit a comment instead of the SQL, and one removed a tie-break whose absence PostgreSQL's row order happened to hide. Both re-run as targeted mutations and caught.
+
+**Open issues**
+- Best sellers (138 ms) and Deals (71 ms) cost grows with the catalog (benchmark); fine at 105 products, a short cache would fix it at scale.
+- Block types and banner links are not validated on write (no admin UI); the frontend guards on read.
