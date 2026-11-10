@@ -18,6 +18,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // original request was HTTPS (correct URLs, secure redirects). '*' is
         // fine because the container is only reachable through Render's proxy.
         $middleware->trustProxies(at: '*');
+
+        // There is no server-rendered login page (the SPA has /login). By
+        // default the auth middleware builds a redirect to route('login') for
+        // any request that does not ask for JSON, and that route does not
+        // exist, so a plain GET without a token was a 500. No redirect: the
+        // exception renderer below then answers 401 JSON (D33).
+        $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

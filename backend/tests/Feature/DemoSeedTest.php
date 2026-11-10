@@ -126,6 +126,12 @@ class DemoSeedTest extends TestCase
 
         $this->assertTrue(Hash::check(OrderHistorySeeder::DEMO_PASSWORD, $user->password));
         $this->assertGreaterThan(0, $user->orders()->where('status', 'paid')->count());
+
+        // Through the real endpoint too: the README's demo login must work.
+        $this->postJson('/api/auth/login', [
+            'email' => OrderHistorySeeder::DEMO_EMAIL,
+            'password' => OrderHistorySeeder::DEMO_PASSWORD,
+        ])->assertOk()->assertJsonPath('data.user.id', $user->id);
     }
 
     public function test_seeding_twice_changes_nothing(): void
