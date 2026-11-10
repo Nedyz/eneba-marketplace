@@ -41,11 +41,11 @@ Backend (`backend/`):
 Frontend (`frontend/`):
 - `npm install` then `cp .env.example .env.local` (first time)
 - `npm run dev` → http://localhost:5173
-- `npm run build` (type check + production build), `npm run lint` (oxlint)
+- `npm run build` (type check + production build), `npm run lint` (oxlint), `npm test` (Vitest, pure logic such as the store's URL state)
 
 ## CI
-- GitHub Actions (`.github/workflows/ci.yml`) on every push to `main` and every pull request: `backend` (Pint, tests on PostgreSQL 17, migration round trip), `frontend` (lint, type check, build on Node 26), `docker` (builds the production image, starts it twice against an empty database: first start seeds, second skips).
-- Before pushing, run locally what CI runs: `vendor/bin/pint --test` and `php artisan test` in `backend/`, `npm run lint` and `npm run build` in `frontend/`.
+- GitHub Actions (`.github/workflows/ci.yml`) on every push to `main` and every pull request: `backend` (Pint, tests on PostgreSQL 17, migration round trip), `frontend` (lint, Vitest, type check, build on Node 26), `docker` (builds the production image, starts it twice against an empty database: first start seeds, second skips).
+- Before pushing, run locally what CI runs: `vendor/bin/pint --test` and `php artisan test` in `backend/`, `npm run lint`, `npm test` and `npm run build` in `frontend/`.
 
 ## Deployment
 - Frontend: https://eneba-marketplace.vercel.app (Vercel, root `frontend`, env `VITE_API_URL`)
