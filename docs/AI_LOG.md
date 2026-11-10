@@ -156,3 +156,30 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 - For very common terms Postgres sometimes picks a sequential scan over the 2x faster trigram index plan (pg_trgm functions declared with cost 1). Irrelevant at 105 products; documented in D28.
 - Not handled: abbreviations ("gta"), `unaccent`.
 - Next session (frontend): store page with URL state, header autocomplete with a "see all results" row.
+
+## Session 7 — 10 November 2026: store page and header autocomplete (day 3)
+
+**Done**
+- Plan agreed first, with explanations of URL state with TanStack Query and of the autocomplete debounce.
+- Store page `/store`: platform/region checkboxes, whole-euro price inputs, sort ("Best match" only while searching), removable chips, pagination with real hrefs, loading/error/empty/past-the-end states, collapsible filters on mobile. All state in the URL (`storeParams.ts`, `useStoreParams`).
+- `ProductCard`, `ProductCover`, `Price` are store-agnostic, for the day 4 homepage blocks (Nedas's request).
+- Header autocomplete: WAI-ARIA combobox, 250 ms debounce, up to 8 editions, "See all results" row, fresh `?q=` search on submit, input follows the URL on `/store`.
+- Vitest added (56 tests: URL parsing/serializing, pagination window, API query) and run in CI. The 9 parsing rules were mutation-checked: removing any one fails a test.
+- Checked in a real browser (Playwright): request counts, Back/Forward from cache (0 requests), bad URLs canonicalized without a 422, keyboard and mouse use of the dropdown, an artificially slow request aborted and never shown, desktop and mobile layouts, no console errors.
+
+**Decisions**
+- D29: URL as the single source of truth, lenient parsing, canonical form as cache identity, autocomplete layers (debounce, cache, keyed results + abort), dropdown visibility from the live input, fresh search from the header, Vitest for pure logic only.
+
+**Problems found and fixed**
+- Dropdown could show old rows under an almost empty input, through `keepPreviousData` on a disabled query and the debounce delay (Nedas's catch, before implementation); visibility now uses the live input, verified by deleting quickly from "witcher" to "w".
+- Price inputs applied the minimum when tabbing to the maximum, and the `key` remount stole focus; now applied when focus leaves the group, synced without remounting.
+- React Router pushes a history entry even for an unchanged URL (checked in its source): unchanged updates are skipped.
+- Removing a filter chip dropped keyboard focus to `<body>`; focus now moves to the result count.
+- Pagination highlighted the page from the previous response while the next one loaded; now uses the URL's page.
+- Suggestion thumbnails rendered full width: a caller's `w-9` lost to the built-in `w-full` (Tailwind resolves conflicting classes by stylesheet order). `ProductCover` no longer takes a `className`; its `size` sets the width.
+- CI failed on the first PR run: `api/client.ts` throws at import without `VITE_API_URL` (on purpose), and Vitest had silently read the developer's `.env.local`. Tests now get a fixed placeholder URL in `vite.config.ts` (`test.env`), so they no longer depend on local files; verified by running them with the variable emptied and without `.env.local`.
+
+**Open issues**
+- Checkbox ticks appear ~27 ms after the click (React Router updates as a transition); not noticeable, `flushSync` would remove it.
+- Day 6 polish: the generated cover repeats the card title; long names are truncated next to discounted prices in mobile suggestions; optional price slider.
+- Product links lead to the 404 page until the product page exists (day 4).
