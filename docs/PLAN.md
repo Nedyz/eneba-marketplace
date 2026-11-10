@@ -28,7 +28,7 @@ eneba-marketplace/
 │   │   ├── Models/
 │   │   ├── Services/
 │   │   │   ├── Catalog/        # ProductQuery, SearchService
-│   │   │   ├── Home/           # HomeLayoutService, BannerService, BestSellersService, DealsService
+│   │   │   ├── Home/           # HomeLayout, HomeBanners, BestSellers, Deals
 │   │   │   └── Checkout/       # CheckoutService (reserve, pay, expire)
 │   │   └── Payments/           # PaymentGateway interface, FakePaymentGateway
 │   ├── database/{migrations,seeders,factories}/
@@ -84,6 +84,7 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 - Unknown block types are skipped, so an old frontend never crashes on a new block type.
 - Which blocks appear, their order and their titles are all decided in the database. A new block ("New releases") with an existing type needs only a `home_blocks` row and a backend service, with no frontend change.
 - Endpoints are stored as paths relative to the API base, and the frontend only requests them under the API base URL, so a bad database row cannot make the browser call another host.
+- Contract per type: a `banner` endpoint returns `{data: Banner[]}`, a `product_carousel` endpoint returns `{data: ProductSummary[]}` (the store card, `ProductListResource`). Banner links are frontend routes in the store's URL format (`/store?platform=steam`); a banner whose link is not a same-site path is not shown. Details: D32.
 
 ## Checkout and key assignment
 
@@ -116,9 +117,9 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 | POST | `/auth/logout` | yes | Revoke token |
 | GET | `/auth/me` | yes | Current user |
 | GET | `/home` | | Homepage layout (list of blocks) |
-| GET | `/home/banners` | | Banner block content |
-| GET | `/home/best-sellers` | | Top products by units sold in the last 30 days |
-| GET | `/home/deals` | | Top offers by discount % |
+| GET | `/home/banners` | | Active banners inside their `[starts_at, ends_at)` window, by position |
+| GET | `/home/best-sellers` | | 12 in-stock products by units sold in the last 30 days, remaining places filled by all-time units (D32) |
+| GET | `/home/deals` | | 12 products whose card price (from-price offer) is discounted, largest discount first (D32) |
 | GET | `/products` | | Store and search: `q, platform[], region[], price_min, price_max` (cents), `sort` (`newest`, `price_asc`, `price_desc`, `name`, `relevance`; default `relevance` when `q` is set, see D28), `page, per_page` (24, max 60). From price: see D23. |
 | GET | `/products/filters` | | Available platforms, regions, price range |
 | GET | `/products/{slug}` | | Product with its active offers: in stock first, then price, then offer id (D30) |

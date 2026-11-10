@@ -225,3 +225,25 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 - `/checkout` does not exist yet, so the enabled Checkout button leads to the 404 page until day 5.
 - In development, each cart page load sends one quote that is aborted and repeated (StrictMode's double mount); production sends one.
 - The header count can include lines that are no longer buyable until the cart page is opened.
+
+## Session 10 — 10 November 2026: homepage blocks (day 4, session 3)
+
+**Done**
+- Plan agreed first. Scope: `GET /home` plus the three block endpoints its seeded layout points to (without them the page has nothing to render). Nedas's answers: sold-out best sellers left out, 12 per block, and a new requirement: fill Best sellers with all-time sales when the 30-day window has fewer than 12, because production's seeded orders age out of the window around 9 December.
+- Backend: `Services/Home` (`HomeLayout`, `HomeBanners`, `BestSellers`, `Deals`), `HomeController`, `HomeBlockResource`, `BannerResource`, four routes. 34 feature tests in `tests/Feature/Home` plus 2 in `DemoSeedTest` (backend suite: 154); 23 rules mutation-checked.
+- Frontend: `api/home.ts`, `features/home` (`HomePage`, `blockRegistry`, `BannerBlock`, `ProductCarouselBlock`, `BlockLoadError`, pure rules in `homeBlocks.ts` with 16 Vitest tests, suite: 121), `ArrowButton`. Carousels reuse `ProductCard`. `HomePlaceholder` removed.
+- Checked in a real browser (Playwright) on the local seed, desktop and mobile: banner stepping, wrap-around and dots, carousel scroll buttons, the banner CTA opening a Steam-filtered store; then, by SQL (restored and diffed afterwards): reorder, rename, unknown type skipped, a second carousel row with no frontend change, expired banner, external banner link skipped, a 404 endpoint showing a per-block retry, no active blocks.
+- Measured the new queries on the 50k-product benchmark database (dropped afterwards).
+
+**Decisions**
+- D32: best sellers ranked `recent_units DESC, total_units DESC, id` in one aggregate (the all-time fill); deals ranked by the card's offer, not any discounted offer; no banner autoplay; same-site banner links only; costs at scale recorded, not optimized.
+
+**Problems found and fixed**
+- The day 2 seed linked banners to `/store?platform[]=steam` (API syntax); the store reads `platform=steam`. Fixed in the seeder and, for production's already-seeded rows, by a data migration.
+- The carousel widened the whole page (962 px of sideways scroll): the cards' absolutely positioned `sr-only` labels escaped the scroller's overflow clip. Fixed with `relative` on the scroller.
+- Two quick Next clicks moved one banner (stale index); fixed with a functional state update.
+- Two mutation-test mistakes of my own: one replacement hit a comment instead of the SQL, and one removed a tie-break whose absence PostgreSQL's row order happened to hide. Both re-run as targeted mutations and caught.
+
+**Open issues**
+- Best sellers (138 ms) and Deals (71 ms) cost grows with the catalog (benchmark); fine at 105 products, a short cache would fix it at scale.
+- Block types and banner links are not validated on write (no admin UI); the frontend guards on read.
