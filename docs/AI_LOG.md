@@ -204,3 +204,24 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 **Open issues**
 - No add to cart yet (session 2); the offer row leaves room on the right for the button.
 - The seed has no product whose offers are all sold out; that case is covered by a backend test only.
+
+## Session 9 — 10 November 2026: cart (day 4, session 2)
+
+**Done**
+- Plan agreed first, starting with what happens when an offer's price changes or it sells out while in a cart. Nedas approved all four recommendations: problem lines block checkout with no automatic cart changes, 10 per line, price notes once per detection in both directions, `expected_total_cents` on `POST /orders` recorded now and built on day 5.
+- Backend: `POST /cart/quote` (`CartQuoteRequest`, `Services/Cart/CartQuoter` with `CartQuote`/`CartQuoteLine` value objects and a `CartLineStatus` enum, two resources, `CartController`). 28 feature tests (backend suite: 118); 12 rules mutation-checked.
+- Frontend: cart rules as pure functions (`cartStorage.ts`, `priceChanges.ts`, 40 Vitest tests, suite: 105), a `useSyncExternalStore` cart store synced with localStorage and other tabs, add to cart on offer rows, cart count in the header, and the `/cart` page.
+- Checked in a real browser (Playwright) on the local seed, with offers changed by SQL and restored afterwards: stock cap on add, price rise and drop notes (gone after reload), partial sell-out with "Change to 1", full sell-out and a withdrawn offer blocking checkout, the line coming back when the reservation expired, refetch when the tab becomes visible, two-tab sync, render order differing from quote order, empty cart, mobile.
+- Moved the day 4 session 1 transcript to `ai-logs/2026-11-10-day4-product-page.md` (it had been exported as a directory with a newline in its name). Content checked complete, left uncommitted for Nedas's end-of-day transcript commit.
+
+**Decisions**
+- D31: browser keeps offer id, quantity and a display snapshot; the server quotes prices, stock, status and total; problem lines block checkout; the quote request (sorted pairs) is the cache key, so lines are matched by offer id; a module store instead of the React context in PLAN.md.
+
+**Problems found and fixed**
+- oxlint flagged `setState` inside the effect that records price notes. The notes moved into the cart store, so the effect only pushes the fresh quote into an external store.
+- Two of my own test mistakes during browser checks (the app was right both times): a `visibilitychange` dispatched on `document` never reaches TanStack Query's listener on `window`; and a reservation written with psql's `now()` was stored in Vilnius time in a UTC column, so it looked two hours longer to the app. Writing `now() at time zone 'UTC'` fixed the check.
+
+**Open issues**
+- `/checkout` does not exist yet, so the enabled Checkout button leads to the 404 page until day 5.
+- In development, each cart page load sends one quote that is aborted and repeated (StrictMode's double mount); production sends one.
+- The header count can include lines that are no longer buyable until the cart page is opened.
