@@ -44,3 +44,11 @@ export function UserIcon({ className }: IconProps) {
     </svg>
   )
 }
+
+export function StarIcon({ className }: IconProps) {
+  return (
+    <svg {...base} fill="currentColor" className={className}>
+      <path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z" />
+    </svg>
+  )
+}
