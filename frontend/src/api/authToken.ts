@@ -8,8 +8,8 @@ import { useSyncExternalStore } from 'react'
  * so a cookie would be a third-party cookie that Safari and Firefox block. The
  * cost: any script running on our page can read it, so an XSS bug would leak
  * it. That risk is limited by the 7-day expiry, by logout deleting the token
- * on the server, and kept small by React's escaping and the Content Security
- * Policy (vercel.json). The upside: the browser never attaches it by itself,
+ * on the server, and kept small by React's escaping (and, from day 6, a
+ * Content Security Policy in vercel.json). The upside: the browser never attaches it by itself,
  * so other sites cannot make requests with it (no CSRF).
  *
  * Same shape as the cart store (D31): one module-level value, a change event,

@@ -247,3 +247,27 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 **Open issues**
 - Best sellers (138 ms) and Deals (71 ms) cost grows with the catalog (benchmark); fine at 105 products, a short cache would fix it at scale.
 - Block types and banner links are not validated on write (no admin UI); the frontend guards on read.
+
+## Session 11 — 10 November 2026: auth (day 5, session 1)
+
+**Done**
+- Plan agreed first, starting with where the browser keeps the token and what that means for security (Nedas's question). Nedas's answers: add a Content Security Policy but only merge it once it is checked on a Vercel preview; keep the cart on sign-out. Nedas's correction: Render has no cron, so `sanctum:prune-expired` is scheduled but never runs in production, and D33 says so.
+- Backend: `POST /auth/register`, `/auth/login`, `/auth/logout`, `GET /auth/me` (`AuthController`, `RegisterRequest`, `LoginRequest`, `UserResource`), two named rate limiters, Sanctum expiry 7 days and bearer-only guard, the prune command in the scheduler, the default `/user` route removed. 40 feature tests in `tests/Feature/Auth` plus an API login in `DemoSeedTest` (backend suite: 194); 24 rules mutation-checked.
+- Frontend: token store (`api/authToken.ts`), bearer header and clear-on-401 in the API client, `useAuth`/`useLogin`/`useRegister`/`useLogout`, `/login` and `/register`, `RequireAuth` around `/checkout` and `/orders` (placeholders), `AccountMenu` in the header, `isInternalPath` moved to `lib/paths.ts`. 32 Vitest tests (suite: 153); 9 rules mutation-checked.
+- Checked in a real browser (Playwright) on the local seed: guest cart → Checkout → login (wrong password first, mixed-case email) → back on `/checkout` with the cart byte-identical and no extra `/auth/me`; reload; Back skips the login page; a token aged past 7 days in SQL → signed out, back at `/login`, cart kept; register with a taken email (field error linked with `aria-describedby`) then a new one; Escape closes the menu with focus returned; sign-out in one tab moved the other tab to `/login`, and sign-in moved it back to `/orders`; the 429 lockout message; mobile and desktop header.
+- CSP: written and checked locally on the production build served with the exact headers (no violations over the whole flow; injected inline script and cross-host fetch blocked). Then reverted on this branch, because the Vercel preview could not be checked (below).
+- PR opened from `day5`, not merged: the checkout session continues on this branch.
+
+**Decisions**
+- D33: token in localStorage (cost: XSS can read it; gain: no CSRF; HttpOnly would not stop XSS acting in the page); emails lowercased; password limit in bytes; one answer and one hash for unknown emails; rate limits per email + IP and per IP; 401 JSON without `Accept`; return path in router state, not the URL; cart untouched by auth; sign-out does not wait for the server.
+
+**Problems found and fixed**
+- A protected route requested without `Accept: application/json` was a 500 (redirect to a non-existent `login` route), found by a test; now 401 JSON.
+- `max:255` on the email can never fire alone: the email format rule already rejects longer addresses, and it also rejects 63-character domain labels below the documented limits. The tests use 50-character labels and check the length rule's own message.
+- `client.ts` importing the token store broke every Vitest file that imports the client (no `window` in Node); the one `window` listener is now guarded.
+- My mistakes: one mutation left a PHP syntax error, so it "passed" for the wrong reason (re-run correctly, caught). A first `git revert -q` failed on the unknown flag and the `git commit --amend` chained after it relabelled the CSP commit as "Revert" (local only, never pushed); the branch was reset to the pushed commit (same tree, checked) and reverted properly.
+
+**Open issues**
+- CSP is not on `main`: the Vercel preview is behind Vercel Authentication and the Chrome extension was not connected. Day 6: revert the revert, open the preview in a signed-in browser, check the console.
+- Expired token rows stay in `personal_access_tokens` on Render (no cron); harmless.
+- `/checkout` and `/orders` are placeholders until the checkout session and day 6.

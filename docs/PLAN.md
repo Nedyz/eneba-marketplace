@@ -13,7 +13,7 @@ Browser ──► Vercel (React SPA) ──HTTPS/JSON──► Render (Laravel A
   Store filters, sorting, page and search query live in the URL (`useSearchParams`). The cart lives in `localStorage`, read through a small store with `useSyncExternalStore` (D31).
 - **Backend**: Laravel, JSON API only. Layers: Controller (thin) → Service (business logic) → Eloquent model.
   Validation in `FormRequest` classes, response shape in `JsonResource` classes.
-- **Auth**: Laravel Sanctum personal access tokens (bearer), because frontend and backend are on different sites.
+- **Auth**: Laravel Sanctum personal access tokens (bearer), because frontend and backend are on different sites. The token is kept in `localStorage`; a CSP on Vercel (day 6, after a preview check) will limit what an XSS bug could do with it (D33).
 - **Database**: PostgreSQL on Neon. Local development and tests use a local PostgreSQL (Homebrew), because `pg_trgm` does not exist in SQLite.
 
 ## Folder structure
@@ -113,8 +113,8 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/health` | | Health check (also checks the DB connection) |
-| POST | `/auth/register`, `/auth/login` | | Returns token + user |
-| POST | `/auth/logout` | yes | Revoke token |
+| POST | `/auth/register`, `/auth/login` | | `{data: {token, user}}` (201 / 200). Rate limited (D33) |
+| POST | `/auth/logout` | yes | Delete the token used for the request (204) |
 | GET | `/auth/me` | yes | Current user |
 | GET | `/home` | | Homepage layout (list of blocks) |
 | GET | `/home/banners` | | Active banners inside their `[starts_at, ends_at)` window, by position |
@@ -142,7 +142,7 @@ Ranking: prefix match first, then `word_similarity`, then `similarity`, then nam
 | 3 | Wed 11 Nov | Search (trigram search, suggestions, tests). Store page with URL state. Header autocomplete. |
 | 4 | Thu 12 Nov | Product page with offer comparison. Server-driven homepage (`/home` + 3 blocks). Cart with `/cart/quote`. |
 | 5 | Fri 13 Nov | Auth. Checkout: reserve, pay, expire, with tests. |
-| 6 | Sat 14 Nov | Order confirmation with key reveal, order history. Styling polish, responsive, error states. Full flow tested on production. |
+| 6 | Sat 14 Nov | Order confirmation with key reveal, order history. Content Security Policy back in, checked on a Vercel preview (D33). Styling polish, responsive, error states. Full flow tested on production. |
 | 7 | Sun 15 Nov | Buffer. README, export AI logs, final checks, submit. |
 | | Mon 16 Nov | Reserve only. |
 
