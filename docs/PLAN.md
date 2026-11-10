@@ -119,18 +119,18 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 | GET | `/home/banners` | | Banner block content |
 | GET | `/home/best-sellers` | | Top products by units sold in the last 30 days |
 | GET | `/home/deals` | | Top offers by discount % |
-| GET | `/products` | | Store and search: `q, platform[], region[], price_min, price_max` (cents), `sort` (`newest`, `price_asc`, `price_desc`, `name`; `relevance` on day 3), `page, per_page` (24, max 60). From price: see D23. |
+| GET | `/products` | | Store and search: `q, platform[], region[], price_min, price_max` (cents), `sort` (`newest`, `price_asc`, `price_desc`, `name`, `relevance`; default `relevance` when `q` is set, see D28), `page, per_page` (24, max 60). From price: see D23. |
 | GET | `/products/filters` | | Available platforms, regions, price range |
 | GET | `/products/{slug}` | | Product with offers, cheapest first |
-| GET | `/search/suggestions?q=` | | Autocomplete, 6 to 8 matches |
+| GET | `/search/suggestions?q=` | | Autocomplete: up to 8 editions, same match and ranking as the store, `q` 2 to 100 characters |
 | POST | `/cart/quote` | | Current prices and stock for `[{offer_id, qty}]` |
 | POST | `/orders` | yes | Create pending order, reserve keys |
 | POST | `/orders/{id}/pay` | yes | Simulated payment |
 | GET | `/orders` | yes | Order history, paginated |
 | GET | `/orders/{id}` | yes, owner | Order detail, keys if paid |
 
-Search: a product matches if `name ILIKE '%term%'` (partial) or `term <% name` (trigram word similarity, typos).
-Ranking: prefix match first, then similarity score. Both conditions can use the GIN trigram index.
+Search: a product matches if `name ILIKE '%term%'` (partial) or `term <% name` (trigram word similarity at threshold 0.4, typos).
+Ranking: prefix match first, then `word_similarity`, then `similarity`, then name and id. Both conditions use the GIN trigram index. Details and measurements: D28.
 
 ## Day-by-day plan
 

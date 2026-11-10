@@ -12,4 +12,7 @@ enum ProductSort: string
     case PriceAsc = 'price_asc';
     case PriceDesc = 'price_desc';
     case Name = 'name';
+
+    /** Search only: default when `q` is set; without `q` it falls back to Newest (D28). */
+    case Relevance = 'relevance';
 }

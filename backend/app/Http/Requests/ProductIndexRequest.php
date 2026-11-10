@@ -21,9 +21,15 @@ class ProductIndexRequest extends FormRequest
     /** Prices: integer cents (D12). Upper bound keeps values inside a PostgreSQL integer. */
     private const MAX_PRICE_CENTS = 100_000_000;
 
+    /** Longer terms only cost more trigrams to compare; no game title needs more. */
+    public const MAX_QUERY_LENGTH = 100;
+
     public function rules(): array
     {
         return [
+            // Laravel's global TrimStrings + ConvertEmptyStringsToNull middleware turn
+            // "q=" and "q=   " into null, so an empty search box means "no search".
+            'q' => ['sometimes', 'nullable', 'string', 'max:'.self::MAX_QUERY_LENGTH],
             'platform' => ['sometimes', 'array', 'max:20'],
             'platform.*' => ['string', 'max:100'],
             'region' => ['sometimes', 'array', 'max:20'],
@@ -40,13 +46,31 @@ class ProductIndexRequest extends FormRequest
 
     public function filters(): ProductFilters
     {
+        $search = self::normalizeSearch($this->validated('q'));
+
         return new ProductFilters(
             platforms: array_values(array_unique($this->validated('platform', []))),
             regions: array_values(array_unique($this->validated('region', []))),
             priceMinCents: $this->has('price_min') ? (int) $this->validated('price_min') : null,
             priceMaxCents: $this->has('price_max') ? (int) $this->validated('price_max') : null,
-            sort: ProductSort::from($this->validated('sort', ProductSort::Newest->value)),
+            // With a search term the best matches come first unless another sort is asked for.
+            sort: ProductSort::from($this->validated('sort', ($search !== null ? ProductSort::Relevance : ProductSort::Newest)->value)),
+            search: $search,
         );
+    }
+
+    /**
+     * Collapses inner whitespace ("elden    ring" -> "elden ring"); the ends are
+     * already trimmed by middleware. Shared with the suggestions endpoint.
+     */
+    public static function normalizeSearch(?string $q): ?string
+    {
+        if ($q === null) {
+            return null;
+        }
+        $q = trim(preg_replace('/\s+/u', ' ', $q));
+
+        return $q === '' ? null : $q;
     }
 
     public function perPage(): int

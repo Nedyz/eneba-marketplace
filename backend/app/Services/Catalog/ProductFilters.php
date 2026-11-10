@@ -5,7 +5,7 @@ namespace App\Services\Catalog;
 /**
  * Validated store filters, passed from the HTTP layer to ProductQuery.
  * A plain value object (like a C# record), so the service does not depend on
- * the Request class and can be reused by search (day 3).
+ * the Request class and can be reused by the search suggestions.
  */
 final readonly class ProductFilters
 {
@@ -19,5 +19,7 @@ final readonly class ProductFilters
         public ?int $priceMinCents = null,
         public ?int $priceMaxCents = null,
         public ProductSort $sort = ProductSort::Newest,
+        /** Normalized search term (trimmed, single spaces), null = no search. */
+        public ?string $search = null,
     ) {}
 }

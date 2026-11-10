@@ -25,6 +25,8 @@ class ProductQuery
     /** Alias of the lateral subquery holding the cheapest sellable offer. */
     private const BEST = 'best_offer';
 
+    public function __construct(private ProductSearch $search) {}
+
     /**
      * Products with `from_price_cents` and `from_original_price_cents` columns
      * (both null when nothing is in stock), filters and sort applied.
@@ -37,7 +39,7 @@ class ProductQuery
             ->with(['platform', 'region']); // eager load: 3 queries per page, not 1 + 2N
 
         $this->applyFilters($query, $filters);
-        $this->applySort($query, $filters->sort);
+        $this->applySort($query, $filters);
 
         return $query;
     }
@@ -105,6 +107,10 @@ class ProductQuery
     /** @param  Builder<Product>  $query */
     private function applyFilters(Builder $query, ProductFilters $filters): void
     {
+        if ($filters->search !== null) {
+            $this->search->whereMatches($query, $filters->search);
+        }
+
         // Several platforms = OR (whereIn); platform + region = AND (two wheres).
         // Unknown slugs match nothing, so a stale shared URL shows an empty list, not an error.
         if ($filters->platforms !== []) {
@@ -131,11 +137,19 @@ class ProductQuery
      * NULLs FIRST on DESC: out-of-stock products and products without a release
      * date always go to the end.
      *
+     * Relevance without a search term falls back to Newest: a shared URL can keep
+     * sort=relevance after the search box is cleared, and that should not be an error.
+     *
      * @param  Builder<Product>  $query
      */
-    private function applySort(Builder $query, ProductSort $sort): void
+    private function applySort(Builder $query, ProductFilters $filters): void
     {
+        $sort = $filters->sort === ProductSort::Relevance && $filters->search === null
+            ? ProductSort::Newest
+            : $filters->sort;
+
         match ($sort) {
+            ProductSort::Relevance => $this->search->orderByRelevance($query, (string) $filters->search),
             ProductSort::Newest => $query->orderByRaw('products.release_date DESC NULLS LAST'),
             ProductSort::PriceAsc => $query->orderByRaw(self::BEST.'.price_cents ASC NULLS LAST'),
             ProductSort::PriceDesc => $query->orderByRaw(self::BEST.'.price_cents DESC NULLS LAST'),
