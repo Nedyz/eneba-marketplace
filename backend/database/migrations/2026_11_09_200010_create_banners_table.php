@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('subtitle')->nullable();
             $table->string('image_url')->nullable(); // null = frontend draws a background
             $table->string('cta_label');
-            $table->string('link_url');  // internal frontend route, e.g. /store?platform[]=steam
+            $table->string('link_url');  // internal frontend route, e.g. /store?platform=steam
             $table->integer('position');
             $table->boolean('is_active')->default(true);
             $table->timestamp('starts_at')->nullable();

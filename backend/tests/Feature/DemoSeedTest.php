@@ -96,6 +96,30 @@ class DemoSeedTest extends TestCase
         $this->assertGreaterThan(0, (clone $paid)->where('paid_at', '<', now()->subDays(30))->count());
     }
 
+    public function test_every_homepage_block_is_full_now_and_long_after_the_seed(): void
+    {
+        $this->getJson('/api/home')->assertJsonCount(3, 'blocks');
+        $this->getJson('/api/home/banners')->assertJsonCount(3, 'data');
+        $this->getJson('/api/home/deals')->assertJsonCount(12, 'data');
+        $this->getJson('/api/home/best-sellers')->assertJsonCount(12, 'data');
+
+        // Production is seeded once (D20). 90 days later no seeded order is in
+        // the 30-day window, and the all-time fill keeps the block full (D32).
+        $this->travel(90)->days();
+        $this->assertSame(0, DB::table('orders')->where('paid_at', '>=', now()->subDays(30))->count());
+        $this->getJson('/api/home/best-sellers')->assertJsonCount(12, 'data');
+    }
+
+    public function test_banner_links_use_the_store_url_format(): void
+    {
+        // The store reads platform=steam (D29); the API's platform[]=steam would
+        // open an unfiltered store (D32).
+        foreach (DB::table('banners')->pluck('link_url') as $link) {
+            $this->assertStringStartsWith('/', $link);
+            $this->assertStringNotContainsString('[]', $link);
+        }
+    }
+
     public function test_demo_user_can_sign_in_with_the_documented_password(): void
     {
         $user = User::where('email', OrderHistorySeeder::DEMO_EMAIL)->firstOrFail();
