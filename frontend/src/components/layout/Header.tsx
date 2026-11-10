@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { filterOptionsQueryKey, getFilterOptions } from '../../api/catalog'
+import { cartCount } from '../../features/cart/cartStorage'
+import { useCart } from '../../features/cart/cartStore'
 import { SearchAutocomplete } from '../../features/search/SearchAutocomplete'
 import { CartIcon, SearchIcon, UserIcon } from '../ui/icons'
 import { PageContainer } from './PageContainer'
@@ -37,10 +39,7 @@ export function Header() {
           >
             <SearchIcon />
           </button>
-          {/* Cart (day 4): the count badge appears once the cart exists. */}
-          <Link to="/cart" className="p-2" aria-label="Cart">
-            <CartIcon />
-          </Link>
+          <CartLink />
           {/* Sign in (day 5). */}
           <Link to="/login" className="flex items-center gap-2 p-2 text-button font-extrabold">
             <UserIcon />
@@ -60,6 +59,28 @@ export function Header() {
 
       <CategoryBar />
     </header>
+  )
+}
+
+/**
+ * Cart icon with the number of keys in the cart, read from localStorage (no
+ * request). The count is in the link's name for screen readers.
+ */
+function CartLink() {
+  const count = cartCount(useCart())
+
+  return (
+    <Link to="/cart" className="relative p-2" aria-label={count === 0 ? 'Cart' : `Cart, ${count} ${count === 1 ? 'item' : 'items'}`}>
+      <CartIcon />
+      {count > 0 && (
+        <span
+          aria-hidden
+          className="absolute top-0 right-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-xs font-extrabold text-black"
+        >
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </Link>
   )
 }
 

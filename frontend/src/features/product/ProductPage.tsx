@@ -13,7 +13,7 @@ const isNotFound = (error: unknown) => error instanceof ApiError && error.status
 
 /**
  * /product/:slug: one edition (game + platform + region) and every seller's
- * offer for it (D5, D30). Add to cart comes with the cart (next session).
+ * offer for it (D5, D30), each with an add to cart button (D31).
  */
 export function ProductPage() {
   // Always defined on this route; the fallback only satisfies the type.
@@ -94,7 +94,7 @@ export function ProductPage() {
               </p>
             )}
           </div>
-          <OfferList offers={game.offers} />
+          <OfferList offers={game.offers} product={game} />
         </section>
       </article>
     </PageContainer>
