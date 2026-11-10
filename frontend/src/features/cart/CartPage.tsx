@@ -133,7 +133,7 @@ function Summary({ quote }: { quote: UseQueryResult<CartQuote> }) {
       </div>
 
       {canCheckout ? (
-        // /checkout comes with sign-in on day 5.
+        // /checkout asks guests to sign in first (RequireAuth); the cart stays as it is.
         <Link
           to="/checkout"
           className="bg-accent px-5 py-3 text-center text-button font-extrabold text-black hover:bg-accent-hover"

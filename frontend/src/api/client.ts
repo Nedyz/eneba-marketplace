@@ -4,6 +4,8 @@
  * data back, similar to a typed HttpClient wrapper service in .NET.
  */
 
+import { clearAuthToken, getAuthToken } from './authToken'
+
 const rawBaseUrl = import.meta.env.VITE_API_URL
 
 // Fail loudly at startup instead of sending requests to "undefined/health".
@@ -32,15 +34,27 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new Error(`API path must start with "/": ${path}`)
   }
 
+  // Sent on every request when signed in (D33). Public endpoints ignore it.
+  // The browser never adds it by itself: only this line does.
+  const token = getAuthToken()
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       // Makes Laravel answer errors (404, 422, 500) as JSON instead of HTML.
       Accept: 'application/json',
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init.headers,
     },
   })
+
+  // 401 on a request that carried our token: it expired (7 days) or was
+  // revoked, so the app is signed out from here on. Only if it is still the
+  // current token, so a sign-in that finished meanwhile is not undone.
+  if (response.status === 401 && token !== null && getAuthToken() === token) {
+    clearAuthToken()
+  }
 
   // Some responses (e.g. 204 No Content) have no body.
   const text = await response.text()
