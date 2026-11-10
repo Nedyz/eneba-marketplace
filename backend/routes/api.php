@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\SearchController;
@@ -18,6 +19,10 @@ Route::get('/products/{slug}', [ProductController::class, 'show']);
 
 // Header autocomplete (day 3). Full results: GET /products?q=
 Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
+
+// Cart (day 4): the cart lives in the browser (D8); this prices it from the
+// database (D31). Public: guests fill a cart before signing in.
+Route::post('/cart/quote', [CartController::class, 'quote']);
 
 // Laravel default, replaced by /auth/me on day 5.
 Route::get('/user', function (Request $request) {
