@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { filterOptionsQueryKey, getFilterOptions } from '../../api/catalog'
+import { SearchAutocomplete } from '../../features/search/SearchAutocomplete'
 import { CartIcon, SearchIcon, UserIcon } from '../ui/icons'
 import { PageContainer } from './PageContainer'
 import { Wordmark } from './Wordmark'
@@ -22,7 +23,7 @@ export function Header() {
         <Wordmark />
 
         <div className="hidden flex-1 md:block">
-          <SearchForm />
+          <SearchAutocomplete />
         </div>
 
         <nav aria-label="Account" className="ml-auto flex items-center gap-1 md:gap-4">
@@ -52,42 +53,13 @@ export function Header() {
       {mobileSearchOpen && (
         <div id="mobile-search" className="border-t border-white/10 bg-bg py-3 md:hidden">
           <PageContainer>
-            <SearchForm autoFocus />
+            <SearchAutocomplete autoFocus onNavigate={() => setMobileSearchOpen(false)} />
           </PageContainer>
         </div>
       )}
 
       <CategoryBar />
     </header>
-  )
-}
-
-/**
- * Visual only until day 3: suggestions while typing and Enter -> /store?q=...
- * (DECISIONS.md D6). Eneba's style: transparent box, 1px white outline, bold
- * white placeholder, no rounded corners.
- */
-function SearchForm({ autoFocus = false }: { autoFocus?: boolean }) {
-  return (
-    <form
-      role="search"
-      onSubmit={(event) => event.preventDefault()}
-      // The input itself has no outline (it sits inside the bordered box); the whole
-      // box shows the yellow focus ring instead, so keyboard focus stays visible.
-      className="flex h-12 items-center gap-2.5 border border-white px-2.5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent md:h-[57px]"
-    >
-      <SearchIcon className="shrink-0" />
-      <label htmlFor={autoFocus ? 'search-mobile' : 'search-desktop'} className="sr-only">
-        Search for games
-      </label>
-      <input
-        id={autoFocus ? 'search-mobile' : 'search-desktop'}
-        type="search"
-        autoFocus={autoFocus}
-        placeholder="Search for games"
-        className="min-w-0 flex-1 bg-transparent text-base font-extrabold placeholder:text-text outline-none md:text-[19px]"
-      />
-    </form>
   )
 }
 

@@ -23,13 +23,19 @@ interface ProductCoverProps {
   imageUrl: string | null
   /** "lg": store and homepage cards; "sm": thumbnails (search suggestions). */
   size?: 'sm' | 'lg'
-  className?: string
 }
 
-export function ProductCover({ name, platformSlug, imageUrl, size = 'lg', className = '' }: ProductCoverProps) {
+/**
+ * The size owns the width. No className prop on purpose: a caller's "w-9"
+ * next to a built-in "w-full" would be decided by stylesheet order, not by
+ * which class comes last in the string (Tailwind does not merge classes).
+ */
+const SIZE_CLASSES = { lg: 'w-full', sm: 'w-9 shrink-0' } as const
+
+export function ProductCover({ name, platformSlug, imageUrl, size = 'lg' }: ProductCoverProps) {
   // Decorative: the product name is always in the text next to the cover.
   if (imageUrl) {
-    return <img src={imageUrl} alt="" loading="lazy" className={`aspect-[3/4] w-full object-cover ${className}`} />
+    return <img src={imageUrl} alt="" loading="lazy" className={`aspect-[3/4] object-cover ${SIZE_CLASSES[size]}`} />
   }
 
   const gradient = PLATFORM_GRADIENTS[platformSlug] ?? FALLBACK_GRADIENT
@@ -37,7 +43,7 @@ export function ProductCover({ name, platformSlug, imageUrl, size = 'lg', classN
   return (
     <div
       aria-hidden
-      className={`flex aspect-[3/4] w-full items-end overflow-hidden bg-linear-to-br ${gradient} ${size === 'lg' ? 'p-4' : 'p-1'} ${className}`}
+      className={`flex aspect-[3/4] items-end overflow-hidden bg-linear-to-br ${gradient} ${SIZE_CLASSES[size]} ${size === 'lg' ? 'p-4' : ''}`}
     >
       {size === 'lg' && (
         <span className="line-clamp-4 text-xl leading-tight font-extrabold break-words text-white">{name}</span>
