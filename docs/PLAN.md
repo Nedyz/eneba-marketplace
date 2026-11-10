@@ -121,7 +121,7 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 | GET | `/home/deals` | | Top offers by discount % |
 | GET | `/products` | | Store and search: `q, platform[], region[], price_min, price_max` (cents), `sort` (`newest`, `price_asc`, `price_desc`, `name`, `relevance`; default `relevance` when `q` is set, see D28), `page, per_page` (24, max 60). From price: see D23. |
 | GET | `/products/filters` | | Available platforms, regions, price range |
-| GET | `/products/{slug}` | | Product with offers, cheapest first |
+| GET | `/products/{slug}` | | Product with its active offers: in stock first, then price, then offer id (D30) |
 | GET | `/search/suggestions?q=` | | Autocomplete: up to 8 editions, same match and ranking as the store, `q` 2 to 100 characters |
 | POST | `/cart/quote` | | Current prices and stock for `[{offer_id, qty}]` |
 | POST | `/orders` | yes | Create pending order, reserve keys |

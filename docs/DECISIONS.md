@@ -196,3 +196,15 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 - **Header search is a fresh search** (Nedas's choice): submitting goes to `/store?q=…` only, dropping the store's other filters, as D6 describes. On `/store` the box shows the URL's `q` and follows Back/Forward; typing never writes to the URL.
 - **Tests**: Vitest for the pure logic (URL parsing and serializing, page window, API query), run in CI. Components are checked in a real browser with Playwright, not with unit tests.
 - **Gave up**: price is two whole-euro inputs, not a slider (maybe day 6); `per_page` is fixed at 24 and not in the URL; no prefetching of the next page.
+
+## D30. Product page: offer order and sold-out offers (10 Nov)
+- **Endpoint**: `GET /products/{slug}` returns the store card's fields (same `price` block, produced by the same `ProductQuery::withFromPrice()`), the description, and every active offer with seller, price, discount and `stock` (exact number of sellable keys, `ProductKey::scopeSellable`, so stock means the same thing on the store, the product page and, on day 5, at checkout). One `$now` per request, so the header price and the per-offer stock agree. Unknown slug: 404 JSON.
+- **Order** (Nedas's choice of tie-break):
+  1. Offers with stock before sold-out ones (a sold-out offer never sits above one you can buy, even when it is cheaper).
+  2. Price, cheapest first.
+  3. `offers.id`, the same tie-break as the store's from price. So the first offer is exactly the store card's offer, including its original price: two sellers can both charge €19.99 with only one showing "-20%", and a rating tie-break would make the card's badge disagree with the top row. Seller rating is shown on every row instead.
+  Sorted in PHP after one query: Postgres cannot use the `stock` alias inside an `ORDER BY` expression, so SQL would repeat the count subquery, and a product has at most one offer per seller. The frontend never re-sorts.
+- **Sold-out offers** (Nedas's choice): kept, last, `stock: 0`, shown dimmed (muted text, no card background rather than opacity, so contrast stays AA). Same reasoning as sold-out products in the store (D24), and their stock can return without any write when a reservation expires (D10). **Inactive offers** (`is_active = false`) are left out: the seller withdrew them. A product with no offers returns `offers: []` and `price: null`.
+- **Stock display**: "Only N left" at 5 or fewer, otherwise "In stock". The exact count is in the API for the cart's quantity limit.
+- **Tests**: 17 feature tests; each ordering and stock rule, the `is_active` filter, the seller eager load (query count) and the route order were removed one at a time to confirm a test fails.
+- **Gave up**: a higher-rated seller does not win a price tie.

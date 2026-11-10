@@ -183,3 +183,24 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 - Checkbox ticks appear ~27 ms after the click (React Router updates as a transition); not noticeable, `flushSync` would remove it.
 - Day 6 polish: the generated cover repeats the card title; long names are truncated next to discounted prices in mobile suggestions; optional price slider.
 - Product links lead to the 404 page until the product page exists (day 4).
+
+## Session 8 — 10 November 2026: product page (day 4, session 1)
+
+**Done**
+- Branch `day4` created; sessions 2 (cart) and 3 (homepage) continue on it. The PR is opened now so CI runs on every push, and is merged by the homepage session (Nedas's choice).
+- Plan agreed first, with the offer order and sold-out handling explained before any code.
+- Backend: `GET /products/{slug}` (`ProductDetails` service, `ProductDetailResource` extending the card resource, `OfferResource`). Discount rounding moved to `App\Support\Discount`, shared by card and offers. 17 feature tests (backend suite: 90); each rule mutation-checked.
+- Frontend: `/product/:slug` with cover, facts, from price, description and `OfferList` ("Best price" on the first in-stock row, sold-out rows dimmed, "Only N left" at 5 or fewer). Loading skeleton, "Game not found" page (404 not retried), retry on other errors, tab title via React 19 `<title>`.
+- Vitest: stock labels and date formatting (65 tests).
+- Checked in a real browser (Playwright) on the seed: a cheaper sold-out offer below an in-stock one (Forza Horizon 5), a same-price tie ordered by id and matching the store card (GTA V), the 404 page with a single request, desktop and mobile, new text colors contrast-checked (lowest 4.79:1).
+
+**Decisions**
+- D30: in stock first, then price, then offer id (matches the store's tie-break); sold-out offers kept and dimmed, inactive offers excluded.
+
+**Problems found and fixed**
+- `formatDate("2022-02-25")` showed 24 February west of UTC (date-only strings parse as UTC midnight). Formatter fixed to UTC. The test could not catch the bug, because CI runs in UTC and this Mac east of it, so Vitest now runs in `America/New_York`; the test was confirmed to fail without the fix.
+- While mutation-testing the date fix, `git checkout` on the not-yet-committed `format.ts` reset it to `main` (removing `formatDate`); restored from a saved copy before committing, all checks rerun.
+
+**Open issues**
+- No add to cart yet (session 2); the offer row leaves room on the right for the button.
+- The seed has no product whose offers are all sold out; that case is covered by a backend test only.
