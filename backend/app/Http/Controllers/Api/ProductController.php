@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductIndexRequest;
+use App\Http\Resources\ProductDetailResource;
 use App\Http\Resources\ProductListResource;
 use App\Services\Catalog\CatalogFilterOptions;
+use App\Services\Catalog\ProductDetails;
 use App\Services\Catalog\ProductQuery;
 use App\Services\Catalog\ProductSearch;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +24,7 @@ class ProductController extends Controller
         private ProductQuery $products,
         private CatalogFilterOptions $filterOptions,
         private ProductSearch $search,
+        private ProductDetails $details,
     ) {}
 
     /** GET /api/products */
@@ -40,6 +43,18 @@ class ProductController extends Controller
             ->withQueryString()); // pagination links keep the active filters
 
         return ProductListResource::collection($page);
+    }
+
+    /**
+     * GET /api/products/{slug}: product page with every active offer (D30).
+     * Unknown slug -> 404 JSON (the Accept header makes Laravel answer JSON).
+     */
+    public function show(string $slug): ProductDetailResource
+    {
+        $product = $this->details->find($slug, now());
+        abort_if($product === null, 404, 'Product not found.');
+
+        return new ProductDetailResource($product);
     }
 
     /** GET /api/products/filters */

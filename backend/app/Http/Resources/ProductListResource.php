@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Product;
+use App\Support\Discount;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -42,8 +43,7 @@ class ProductListResource extends JsonResource
         return [
             'from_cents' => $from,
             'original_cents' => $original,
-            // Rounded down, so the badge never promises more than the real discount.
-            'discount_percent' => $original !== null ? intdiv(($original - $from) * 100, $original) : null,
+            'discount_percent' => Discount::percent($from, $original),
             'currency' => 'EUR',
         ];
     }

@@ -14,6 +14,7 @@ Route::get('/health', HealthController::class);
 // otherwise "filters" would be read as a product slug.
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/filters', [ProductController::class, 'filters']);
+Route::get('/products/{slug}', [ProductController::class, 'show']);
 
 // Header autocomplete (day 3). Full results: GET /products?q=
 Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
