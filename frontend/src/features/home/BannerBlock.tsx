@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 import { ArrowButton } from '../../components/ui/ArrowButton'
 import { getBlockContent, homeQueryKeys, type Banner, type HomeBlock } from '../../api/home'
 import { BlockLoadError } from './BlockLoadError'
-import { isInternalPath } from './homeBlocks'
+import { isInternalPath } from '../../lib/paths'
 
 /**
  * Background per slide when a banner has no image (D21: the frontend draws it).

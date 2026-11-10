@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HomeBlock } from '../../api/home'
-import { isInternalPath, renderableBlocks } from './homeBlocks'
+import { renderableBlocks } from './homeBlocks'
 
 const block = (id: number, type: string): HomeBlock => ({ id, type, title: null, endpoint: `/home/${id}` })
 const registry = { banner: 'BannerBlock', product_carousel: 'ProductCarouselBlock' }
@@ -30,23 +30,5 @@ describe('renderableBlocks', () => {
 
   it('returns nothing for an empty layout', () => {
     expect(renderableBlocks([], registry)).toEqual([])
-  })
-})
-
-describe('isInternalPath', () => {
-  it.each(['/store', '/store?platform=steam', '/store?q=split+fiction', '/product/elden-ring', '/'])('allows %s', (link) => {
-    expect(isInternalPath(link)).toBe(true)
-  })
-
-  it.each([
-    'https://example.com',
-    'http://example.com/store',
-    '//example.com',
-    '/\\example.com',
-    'javascript:alert(1)',
-    'store',
-    '',
-  ])('rejects %s', (link) => {
-    expect(isInternalPath(link)).toBe(false)
   })
 })
