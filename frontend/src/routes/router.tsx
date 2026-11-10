@@ -2,7 +2,7 @@ import { createBrowserRouter } from 'react-router'
 import { RootLayout } from '../components/layout/RootLayout'
 import { CartPage } from '../features/cart/CartPage'
 import { HealthPage } from '../features/health/HealthPage'
-import { HomePlaceholder } from '../features/home/HomePlaceholder'
+import { HomePage } from '../features/home/HomePage'
 import { ProductPage } from '../features/product/ProductPage'
 import { StorePage } from '../features/store/StorePage'
 import { NotFoundPage } from './NotFoundPage'
@@ -17,8 +17,8 @@ export const router = createBrowserRouter([
     path: '/',
     element: <RootLayout />,
     children: [
-      // Temporary placeholder until the server-driven homepage exists (day 4).
-      { index: true, element: <HomePlaceholder /> },
+      // Server-driven: the layout comes from GET /api/home (D4).
+      { index: true, element: <HomePage /> },
       { path: 'store', element: <StorePage /> },
       { path: 'product/:slug', element: <ProductPage /> },
       { path: 'cart', element: <CartPage /> },
