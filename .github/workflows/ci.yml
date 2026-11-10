@@ -104,6 +104,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
+      # Vitest: unit tests for pure frontend logic (store URL state, D29).
+      - run: npm test
+
       # tsc -b (type check) + vite build. The URL is baked into the bundle at build
       # time, like on Vercel; any value works for a build check.
       - name: Type check and build

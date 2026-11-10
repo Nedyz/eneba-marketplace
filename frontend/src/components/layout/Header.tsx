@@ -108,7 +108,7 @@ function CategoryBar() {
         {data?.platforms.map((platform) => (
           <Link
             key={platform.slug}
-            to={`/store?platform[]=${encodeURIComponent(platform.slug)}`}
+            to={`/store?${new URLSearchParams({ platform: platform.slug })}`}
             className="whitespace-nowrap px-2.5 py-2.5 font-semibold text-text-soft hover:text-text"
           >
             {platform.name}
