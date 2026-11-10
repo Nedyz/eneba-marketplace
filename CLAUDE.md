@@ -20,6 +20,7 @@
 ## Working agreement
 - Plan before code: for each feature, propose a short plan and wait for approval before writing code.
 - Work in small steps, one feature per session.
+- Each day's work goes on its own branch and reaches `main` through a pull request. Merge only when CI is green, as a normal merge commit (not squash), so the individual commits stay in the history.
 - After writing code, explain what it does and why. Use C#/.NET comparisons where they help.
 - Write tests for backend logic, especially search and key assignment at checkout.
 - Homepage content is never hardcoded in the frontend; each block comes from its own backend service.
