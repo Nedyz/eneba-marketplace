@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\SearchController;
 use Illuminate\Http\Request;
@@ -10,6 +11,13 @@ use Illuminate\Support\Facades\Route;
 // Every route in this file is automatically prefixed with /api.
 
 Route::get('/health', HealthController::class);
+
+// Homepage (day 4): /home is the layout from home_blocks (D4); the other three
+// are the content of the blocks the seeded layout points to (D3, D32).
+Route::get('/home', [HomeController::class, 'layout']);
+Route::get('/home/banners', [HomeController::class, 'banners']);
+Route::get('/home/best-sellers', [HomeController::class, 'bestSellers']);
+Route::get('/home/deals', [HomeController::class, 'deals']);
 
 // Catalog. /products/filters is registered before /products/{slug} (day 4),
 // otherwise "filters" would be read as a product slug.
