@@ -130,3 +130,29 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 
 **Open issues**
 - Day 3: search (trigram search, suggestions, `q` in the store), store page with URL state, header autocomplete.
+
+## Session 6 — 10 November 2026: search backend (day 3)
+
+**Done**
+- Plan agreed first, based on measurements: trigram scores on the real catalog for `similarity`, `word_similarity` and `strict_word_similarity`; threshold candidates scored on 30 typo queries; EXPLAIN ANALYZE on a 50k-product database.
+- `GET /api/products?q=` (combines with filters; `sort=relevance` is the default when `q` is set and falls back to `newest` without it) and `GET /api/search/suggestions?q=` (up to 8 editions, store product card shape).
+- `Services/Catalog/ProductSearch`: match (`ILIKE` substring OR `<%` at 0.4, LIKE wildcards escaped), relevance order (prefix, `word_similarity`, `similarity`, name, id), and `withThreshold()` (transaction + `set_config(..., true)` around the count and page queries).
+- 27 new tests (73 total), including `SearchThresholdIsolationTest` without `RefreshDatabase`, and a "pokemon" guard (0.45, only found at 0.4) on both endpoints.
+- Mutation checks: removing the threshold, the escaping, `SET LOCAL` (made session-wide), or each ranking step fails at least one test; the suggestions endpoint without `withThreshold()` fails its guard test.
+- `backend/benchmarks/catalog/` (`build.sh`, `data.sql`, `run.php`): rebuilds the 50k-product / 1M-key benchmark database and EXPLAIN ANALYZEs the D23 and D28 request shapes through the app. Excluded from the Docker image. Throwaway databases dropped afterwards.
+
+**Decisions**
+- D28: `word_similarity` (partial names, half-typed words), threshold 0.4 (30/30 typos, noise always ranked below), operator form + `SET LOCAL` (the function form cannot use the index: 51 ms against 2.5 ms), ranking, sort fallback, suggestions = one row per edition (Nedas's choice; the frontend adds a "see all results" row), performance table and remaining limits.
+- D23: the original benchmark script was not committed; the new script reproduces it, with today's numbers added.
+
+**Problems found and fixed**
+- Two test expectations were wrong before running ("eld" also substring-matches "Zelda"); checked against real scores first.
+- Mutation checks showed three weak ranking tests (name order agreed with the rule under test, so removing the rule changed nothing); rewritten with data where every later tie-breaker disagrees.
+- `RefreshDatabase` turns the search transaction into a savepoint, so a leak test inside it could not fail (Nedas's catch); moved to its own class.
+- "dragon" was assumed to be the worst case; measuring 18 words showed "king" (6,622 matches) is heavier, and 1-character queries are the true worst case (~100 ms at 50k).
+- D28's first numbers came from a hand-built database; replaced with the committed script's output, so every number has a source.
+
+**Open issues**
+- For very common terms Postgres sometimes picks a sequential scan over the 2x faster trigram index plan (pg_trgm functions declared with cost 1). Irrelevant at 105 products; documented in D28.
+- Not handled: abbreviations ("gta"), `unaccent`.
+- Next session (frontend): store page with URL state, header autocomplete with a "see all results" row.
