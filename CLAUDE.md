@@ -36,6 +36,7 @@ Backend (`backend/`):
 - `php artisan migrate` (dev database), `php artisan migrate:fresh --seed` (rebuild with demo data; demo login `demo@example.com` / `password`)
 - `php artisan serve` → http://localhost:8000 (health: `/api/health`)
 - `php artisan test` (always runs on `eneba_test`, forced in `phpunit.xml`)
+- `benchmarks/catalog/build.sh` then `php benchmarks/catalog/run.php [--plans]`: rebuilds the throwaway `eneba_bench` database (50k products, 1M keys) and EXPLAIN ANALYZEs the store and search queries (D23, D28). `dropdb eneba_bench` afterwards.
 
 Frontend (`frontend/`):
 - `npm install` then `cp .env.example .env.local` (first time)

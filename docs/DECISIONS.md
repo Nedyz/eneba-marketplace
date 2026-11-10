@@ -115,6 +115,7 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
   What changed, each found with `EXPLAIN ANALYZE`: an index matching the `newest` and `name` sorts (Postgres reads 24 products in order and prices only those, instead of pricing all 50k and keeping 24); `id` added to the offers price index (removed a sort per product); a partial index on unsold keys (sold keys pile up forever); and a separate count that skips the price join unless a price filter is set.
 - **Remaining limit**: sorting by price cannot use an index, because the price is computed. Every product matching the other filters is priced on each request: about 70 ms at 50k products, growing linearly. Fine for this catalog (105 products). Scaling path: eager reservation expiry (cron), then a stored, indexed from price updated in the same transactions that change offers and keys.
 - **Detail**: `is_active` is written as a literal condition, not a bound parameter, so Postgres can always match the partial index.
+- **Reproducing (added 10 Nov)**: the day 2 benchmark script was not committed, and its data generator is lost. `backend/benchmarks/catalog/` (D28) now rebuilds the same scale (50k products, 200k offers, 1M keys of which 280k sold) from the committed migrations and measures the same request shapes through the app. With the current code, best of 5: `newest` page + count 0.04 + 3.5 ms, `price_asc` 71.8 + 2.1 ms, platform + price range 0.1 + 15.5 ms. The first two match the table above; the third differs because the data differs (in the new data, 24 matching products are found almost at once walking the `newest` index).
 
 ## D24. Store listing behavior (9 Nov)
 - Out-of-stock products stay in the store with `price: null` (Nedas's choice): the catalog stays complete and search can still find sold-out games. They sort last in both price orders, and drop out when a price filter is set.
@@ -142,3 +143,44 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 - **Layout**: sticky header (wordmark, outlined search, cart, sign in), a category bar listing platforms from `GET /products/filters` (only platforms that have products), footer stating the project is an Eneba internship assignment, not affiliated with Eneba. Mobile follows Eneba: one 56 px icon row, search opens below it.
 - **Server waking banner**: shown when API requests have been running continuously for more than 3 seconds (Render free tier cold start), built once in the shell. Verified by delaying API responses by 6 s in the browser: hidden at 1 s, shown at 4 s, gone after the response.
 - **Deliberate differences from Eneba**: the search box fills the free space (Eneba's sits next to language and wishlist controls the app does not have); no language/currency selector or wishlist (EUR only, D12).
+
+## D28. Search: pg_trgm word similarity at 0.4, operator form, relevance ranking (10 Nov)
+- **Match**: `name ILIKE '%term%'` (exact substring, LIKE wildcards in the input escaped) OR `term <% name` (fuzzy). Same rule for `GET /products?q=` and `GET /search/suggestions`.
+- **`word_similarity`, not `similarity`**: `similarity` divides by the trigrams of the whole name, so long titles score low even when they contain the exact word typed ("zelda" vs "The Legend of Zelda: Tears of the Kingdom" = 0.18, "sims" vs "The Sims 4: Cottage Living" = 0.19). `word_similarity` scores the best-matching part of the name (1.0 for both). `strict_word_similarity` was rejected because it penalizes half-typed words ("eld" vs "Elden Ring": 0.43, against 0.75), which autocomplete depends on.
+- **Threshold 0.4** (pg_trgm default 0.6), measured on the real catalog with 30 typo queries ("witcer", "wticher", "hogwards", "balders gate", "stardw valey", "pokemon"...):
+
+  | Threshold | Intended game found | Unrelated games also matched |
+  |---|---|---|
+  | 0.6 (default) | 21 / 30 | 1 |
+  | 0.5 | 28 / 30 | 6 |
+  | **0.4** | **30 / 30** | **6** |
+  | 0.3 | 30 / 30 | 10 |
+
+  At 0.4 every unrelated match scores below the intended game, so it only appears after it ("stardew" also matches Starfield at 0.5; "forza" matches "Need for Speed" through "for").
+- **Operator form plus `SET LOCAL`**: only the operator (`<%`) can use the GIN trigram index, and it reads its threshold from the `pg_trgm.word_similarity_threshold` setting, not from the query. Writing `word_similarity(term, name) >= 0.4` instead gives the same rows but a sequential scan (50k products, "witcer": 51.1 ms against 2.5 ms). So `ProductSearch::withThreshold()` opens a transaction, calls `set_config(..., true)` (= `SET LOCAL`, ends with the transaction) and runs both the count and the page query inside it. Without a search term no transaction is opened.
+- **Testing the setting**: `RefreshDatabase` wraps every test in a transaction, so the search transaction becomes a savepoint, and a transaction-local setting outlives a savepoint (it lasts until the outer transaction ends). The "does not leak" check therefore lives in its own class without `RefreshDatabase` (`SearchThresholdIsolationTest`, Nedas's catch), which checks the setting is back to 0.6 after a request. A separate test searches "pokemon" (0.45 against "Pokémon Scarlet"), which fails if the threshold is not applied.
+- **Ranking** (`sort=relevance`, the default when `q` is set):
+  1. Names starting with the term ("mario": Mario Kart before Super Mario Odyssey).
+  2. `word_similarity`, highest first (the intended game above fuzzy noise).
+  3. `similarity`, highest first (tie-breaker: prefers names closer in length to the term).
+  4. Name, then `id`, so offset pages stay stable (D24).
+
+  Each step has a test whose data makes every later step disagree with it, so removing any step fails a test. This was checked by removing each step (and the escaping and `set_config`) one at a time. Two tests first passed without their rule, because name order happened to agree with it; they were rewritten.
+- **Sort and query rules**: an explicit `sort` overrides relevance. `sort=relevance` without `q` falls back to `newest` (a shared URL can keep it after the search box is cleared; same leniency as unknown slugs, D24). `q` is trimmed (middleware) and inner whitespace collapsed, 1 to 100 characters on `/products`; an empty `q` means no search.
+- **Suggestions**: at most 8 rows, 2 to 100 characters, one row per edition (game + platform + region) with the store's product card shape and from price (Nedas's choice, as on Eneba). The frontend dropdown adds a "see all results" row linking to the store with `?q=`.
+- **Performance** (throwaway local database, PostgreSQL 17: 50k products, 200k offers, 1M keys of which 280k sold; vacuumed; best of 5). Produced by `backend/benchmarks/catalog/` (`build.sh`, then `php run.php`); first measured by hand during the session, with the same plans and times within 6% except the dragon count (5.2 ms by hand). Store request `q=… price_min=1000 price_max=5000` (the price filter makes the count use the from-price lateral join too), exact SQL captured from Laravel's query log:
+
+  | Term | Names matched / after price filter | Count | Page | Products scan |
+  |---|---|---|---|---|
+  | dragon | 1,720 / 1,096 | 3.3 ms | 6.0 ms | trigram index (BitmapOr) |
+  | ring | 4,973 / 3,313 | 14.8 ms | 64.8 ms | sequential (page), index (count) |
+  | king (the most common of 18 vocabulary words tried) | 6,622 / 4,376 | 20.3 ms | 68.0 ms | sequential (page), index (count) |
+  | dr (2 characters, only "dragon" contains it) | 1,720 / 1,096 | 46.3 ms | 48.9 ms | sequential |
+  | s (1 character) | 28,516 / 18,663 | 62.2 ms | 99.5 ms | sequential |
+
+  In the index plans, the from price costs one index probe on offers and one on keys per matched product (~2 µs each). Without a price filter the count skips that join ("king": 9.9 ms).
+- **Remaining limits**:
+  - For very common terms Postgres sometimes picks a sequential scan although the index plan is twice as fast ("king": 67 ms against 29 ms with `enable_seqscan=off`, on the benchmark database). Cause: pg_trgm declares its functions with cost 1 (the same as an integer comparison), but they cost about 1 µs per row, so both plans come out within 0.5% of each other and the planner treats them as equal. Not fixed: changing an extension's function costs is invasive, and the real catalog has 105 products (every query is under 1 ms; Postgres rightly reads the 4-page table sequentially).
+  - Terms of 1 or 2 characters have no complete trigram, so they always scan the table (~100 ms at 50k). Suggestions require 2 characters; the store accepts 1.
+  - Not handled: abbreviations ("gta", "rdr" find nothing; that would need an alias table) and accents beyond fuzzy matching ("pokemon" finds "Pokémon" at 0.45; `unaccent` was not added).
+- **Gave up**: one transaction (3 extra small statements) per search request.

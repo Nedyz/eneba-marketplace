@@ -8,6 +8,7 @@ vendor/
 
 # Not needed at runtime.
 tests/
+benchmarks/
 phpunit.xml
 .phpunit.cache/
 .phpunit.result.cache
