@@ -1,10 +1,16 @@
 /**
  * Generated product cover (D21): a gradient in the platform's color with the
- * title on it, so no third-party images are loaded. A real `image_url`, if one
- * is ever set, is shown instead.
+ * platform's name on it, so no third-party images are loaded. A real
+ * `image_url`, if one is ever set, is shown instead.
  *
- * Colors are our own picks per platform, not brand assets. Text is white on
- * dark gradients (contrast checked against the lightest stop).
+ * The platform, not the title: the title is always printed right next to the
+ * cover, and one game is sold as several editions (D5), so "Split Fiction"
+ * twice in a row only looks like a duplicate. The platform is what tells
+ * those cards apart at a glance.
+ *
+ * Colors are our own picks per platform, not brand assets, and the name is
+ * plain text, not a logo (D14). Text is white on dark gradients (contrast
+ * checked against the lightest stop).
  */
 const PLATFORM_GRADIENTS: Record<string, string> = {
   steam: 'from-[#1b2838] to-[#2a475e]',
@@ -18,10 +24,10 @@ const PLATFORM_GRADIENTS: Record<string, string> = {
 const FALLBACK_GRADIENT = 'from-bg-deep to-surface'
 
 interface ProductCoverProps {
-  name: string
-  platformSlug: string
+  /** Undefined while unknown (a cart line before its first quote): fallback gradient, no label. */
+  platform: { slug: string; name: string } | undefined
   imageUrl: string | null
-  /** "lg": store and homepage cards; "md": cart lines; "sm": thumbnails (search suggestions). Only "lg" prints the title. */
+  /** "lg": store and homepage cards, product page; "md": cart lines; "sm": thumbnails (search suggestions). Only "lg" prints the platform. */
   size?: 'sm' | 'md' | 'lg'
 }
 
@@ -32,21 +38,21 @@ interface ProductCoverProps {
  */
 const SIZE_CLASSES = { lg: 'w-full', md: 'w-16 shrink-0', sm: 'w-9 shrink-0' } as const
 
-export function ProductCover({ name, platformSlug, imageUrl, size = 'lg' }: ProductCoverProps) {
-  // Decorative: the product name is always in the text next to the cover.
+export function ProductCover({ platform, imageUrl, size = 'lg' }: ProductCoverProps) {
+  // Decorative: the product name and platform are always in the text next to the cover.
   if (imageUrl) {
     return <img src={imageUrl} alt="" loading="lazy" className={`aspect-[3/4] object-cover ${SIZE_CLASSES[size]}`} />
   }
 
-  const gradient = PLATFORM_GRADIENTS[platformSlug] ?? FALLBACK_GRADIENT
+  const gradient = (platform && PLATFORM_GRADIENTS[platform.slug]) ?? FALLBACK_GRADIENT
 
   return (
     <div
       aria-hidden
       className={`flex aspect-[3/4] items-end overflow-hidden bg-linear-to-br ${gradient} ${SIZE_CLASSES[size]} ${size === 'lg' ? 'p-4' : ''}`}
     >
-      {size === 'lg' && (
-        <span className="line-clamp-4 text-xl leading-tight font-extrabold break-words text-white">{name}</span>
+      {size === 'lg' && platform && (
+        <span className="text-sm font-extrabold tracking-widest text-white/90 uppercase">{platform.name}</span>
       )}
     </div>
   )

@@ -226,12 +226,7 @@ export function SearchAutocomplete({ autoFocus = false, onNavigate }: { autoFocu
 function SuggestionRow({ product }: { product: ProductSummary }) {
   return (
     <span className="flex items-center gap-3 px-4 py-2">
-      <ProductCover
-        name={product.name}
-        platformSlug={product.platform.slug}
-        imageUrl={product.image_url}
-        size="sm"
-      />
+      <ProductCover platform={product.platform} imageUrl={product.image_url} size="sm" />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-bold">{product.name}</span>
         <span className="block text-xs text-text-soft">

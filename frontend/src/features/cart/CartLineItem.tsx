@@ -38,7 +38,7 @@ export function CartLineItem({ line, quoted, priceChange }: CartLineItemProps) {
         blocked ? 'border border-white/15 text-text-muted' : 'bg-surface'
       }`}
     >
-      <ProductCover name={name} platformSlug={quoted?.product?.platform.slug ?? ''} imageUrl={quoted?.product?.image_url ?? null} size="md" />
+      <ProductCover platform={quoted?.product?.platform} imageUrl={quoted?.product?.image_url ?? null} size="md" />
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
