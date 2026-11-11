@@ -1,16 +1,22 @@
 import { createBrowserRouter } from 'react-router'
 import { RootLayout } from '../components/layout/RootLayout'
+import { LoginPage } from '../features/auth/LoginPage'
+import { RegisterPage } from '../features/auth/RegisterPage'
 import { CartPage } from '../features/cart/CartPage'
+import { CheckoutPage } from '../features/checkout/CheckoutPage'
+import { PaymentPage } from '../features/checkout/PaymentPage'
 import { HealthPage } from '../features/health/HealthPage'
 import { HomePage } from '../features/home/HomePage'
+import { OrderPage } from '../features/orders/OrderPage'
+import { OrdersPage } from '../features/orders/OrdersPage'
 import { ProductPage } from '../features/product/ProductPage'
 import { StorePage } from '../features/store/StorePage'
 import { NotFoundPage } from './NotFoundPage'
+import { RequireAuth } from './RequireAuth'
 
 /**
  * All routes in one place, like a route table. Child routes render inside
- * RootLayout's <Outlet />. Planned routes are added feature by feature:
- * /checkout, /login, /orders...
+ * RootLayout's <Outlet />.
  */
 export const router = createBrowserRouter([
   {
@@ -22,6 +28,22 @@ export const router = createBrowserRouter([
       { path: 'store', element: <StorePage /> },
       { path: 'product/:slug', element: <ProductPage /> },
       { path: 'cart', element: <CartPage /> },
+      { path: 'login', element: <LoginPage /> },
+      { path: 'register', element: <RegisterPage /> },
+      // Pathless layout route: everything inside needs a signed-in user (D33).
+      // The cart stays public: guests fill it before signing in (D8).
+      {
+        element: <RequireAuth />,
+        children: [
+          { path: 'checkout', element: <CheckoutPage /> },
+          // Step 2: pay for a placed order (D34). The id is in the URL so a
+          // reload keeps the same reservation and timer.
+          { path: 'checkout/:orderId', element: <PaymentPage /> },
+          { path: 'orders', element: <OrdersPage /> },
+          // One order with its keys; also the success page after paying.
+          { path: 'orders/:orderId', element: <OrderPage /> },
+        ],
+      },
       { path: 'health', element: <HealthPage /> },
       // "*" matches anything not listed above.
       { path: '*', element: <NotFoundPage /> },

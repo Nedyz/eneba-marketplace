@@ -13,7 +13,7 @@ Browser ──► Vercel (React SPA) ──HTTPS/JSON──► Render (Laravel A
   Store filters, sorting, page and search query live in the URL (`useSearchParams`). The cart lives in `localStorage`, read through a small store with `useSyncExternalStore` (D31).
 - **Backend**: Laravel, JSON API only. Layers: Controller (thin) → Service (business logic) → Eloquent model.
   Validation in `FormRequest` classes, response shape in `JsonResource` classes.
-- **Auth**: Laravel Sanctum personal access tokens (bearer), because frontend and backend are on different sites.
+- **Auth**: Laravel Sanctum personal access tokens (bearer), because frontend and backend are on different sites. The token is kept in `localStorage`; a CSP on Vercel (day 6, after a preview check) will limit what an XSS bug could do with it (D33).
 - **Database**: PostgreSQL on Neon. Local development and tests use a local PostgreSQL (Homebrew), because `pg_trgm` does not exist in SQLite.
 
 ## Folder structure
@@ -63,7 +63,7 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 | `sellers` | id, name, rating | Seeded, no seller accounts |
 | `offers` | id, product_id, seller_id, price_cents, original_price_cents (nullable), is_active | unique(product_id, seller_id). A deal = `original_price_cents > price_cents`. |
 | `product_keys` | id, offer_id, code (encrypted), status (`available`/`reserved`/`sold`), reserved_until, order_item_id (nullable), sold_at | Index (offer_id, status). Stock is derived by counting available keys (including reservations past `reserved_until`). Migrated after `order_items`, which it references. |
-| `orders` | id, user_id, status (`pending`/`paid`/`failed`/`expired`), total_cents, currency, expires_at, payment_reference, paid_at | `expires_at` = creation + 15 minutes |
+| `orders` | id, user_id, status (`pending`/`paying`/`paid`/`failed`/`expired`/`cancelled`, D34), total_cents, currency, expires_at, payment_reference, paid_at | `expires_at` = creation + 15 minutes, extended by the payment hold; always equal to the keys' `reserved_until` |
 | `order_items` | id, order_id, offer_id, quantity, unit_price_cents, product_name, seller_name | Price and names are copied at purchase time |
 | `home_blocks` | id, type, title, endpoint, position, is_active | Homepage layout, see below |
 | `banners` | id, title, subtitle, image_url, cta_label, link_url, position, is_active, starts_at, ends_at | Content of the banner block |
@@ -89,7 +89,7 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 ## Checkout and key assignment
 
 1. **`POST /api/orders` (reserve)**, one transaction:
-   re-read prices from the database, create a `pending` order (`expires_at = now + 15 min`) and its items, then for each item:
+   lock the buyer's `users` row (one checkout at a time per user), cancel their previous `pending` order and release its keys (one pending order per user, D34), re-price the cart with `CartQuoter` (`409 out_of_stock` if a line is not available, `409 price_changed` if the total differs from `expected_total_cents`), create a `pending` order (`expires_at = now + 15 min`) and its items, then for each item:
    ```sql
    SELECT id FROM product_keys
    WHERE offer_id = :offer
@@ -97,24 +97,24 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
    ORDER BY id LIMIT :qty
    FOR UPDATE SKIP LOCKED
    ```
-   Fewer rows than requested → roll back, `409 Out of stock`. Otherwise mark them `reserved`, set `reserved_until`, link them to the order item.
+   Fewer rows than requested → roll back, `409 out_of_stock` with a fresh quote. Otherwise mark them `reserved` (the `UPDATE` re-checks the sellable condition and its row count), set `reserved_until`, link them to the order item. Any 409 changes nothing.
 2. **`POST /api/orders/{id}/pay`**:
-   1. Transaction A: lock the order row (`FOR UPDATE`). If already `paid`, return the existing result (idempotent). If `now > expires_at`, release the keys, mark the order `expired`, return `409 Reservation expired`. Otherwise check that all the order's keys are still reserved for it, and extend `reserved_until` by 2 minutes (payment hold) so they cannot be taken while the payment is processed.
-   2. Charge via `PaymentGateway` (outside any transaction: never hold row locks during a network call).
-   3. Transaction B: success → keys `sold`, order `paid`. Decline → keys released, order `failed`. If the keys are somehow no longer ours, refund and fail (safety net, should not happen thanks to the hold).
+   1. Transaction A: lock the order row (`FOR UPDATE`, waiting). `paid` → return it again (idempotent, no charge). `paying` → `409 payment_in_progress`. `failed`/`expired`/`cancelled` → `409 order_not_payable`. `now > expires_at` → release the keys, mark it `expired`, `409 reservation_expired`. Otherwise check that all the order's keys are still reserved for it, set the order to **`paying`** and extend the hold to `max(expires_at, now + 2 min)` on the order and its keys (D34).
+   2. Charge via `PaymentGateway` with the order as idempotency key (outside any transaction: never hold row locks during a network call). A gateway exception puts the order back to `pending`; a retry reuses the key.
+   3. Transaction B: success → keys `sold`, order `paid`. Decline → keys released, order `failed`, `402 card_declined`. Keys no longer ours, or the order no longer `paying` (failed by lazy expiry during a very slow charge) → refund and fail.
 3. **Expiry of old pending orders** (no cron on Render free tier):
    - Keys never need cleaning up to stay correct: the reserve query already treats expired reservations as available.
-   - Order status is expired lazily: by the pay endpoint (step 2.1), and by a bulk `UPDATE ... SET status = 'expired' WHERE status = 'pending' AND expires_at < now()` (with key release) run before the order history and order detail queries.
+   - Order status is expired lazily (`OrderExpirer`): by the pay endpoint (step 2.1), by `GET /orders/{id}`, and (day 6) before the order history query. `pending` past `expires_at` → `expired`; `paying` past its hold → `failed` (an interrupted payment). Keys still linked to the order are released.
    - The same logic is exposed as `php artisan orders:expire` and registered in the Laravel scheduler, so a paid deployment with cron would expire orders proactively.
-   - The cart is cleared only after a successful payment, so after an expiry the buyer can check out again in one click.
+   - The cart is changed only after a successful payment, and then only the ordered offers are removed, so after a decline or an expiry the buyer can check out again in one click (D34).
 
 ## REST endpoints (`/api`)
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/health` | | Health check (also checks the DB connection) |
-| POST | `/auth/register`, `/auth/login` | | Returns token + user |
-| POST | `/auth/logout` | yes | Revoke token |
+| POST | `/auth/register`, `/auth/login` | | `{data: {token, user}}` (201 / 200). Rate limited (D33) |
+| POST | `/auth/logout` | yes | Delete the token used for the request (204) |
 | GET | `/auth/me` | yes | Current user |
 | GET | `/home` | | Homepage layout (list of blocks) |
 | GET | `/home/banners` | | Active banners inside their `[starts_at, ends_at)` window, by position |
@@ -126,9 +126,9 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 | GET | `/search/suggestions?q=` | | Autocomplete: up to 8 editions, same match and ranking as the store, `q` 2 to 100 characters |
 | POST | `/cart/quote` | | Current prices, stock and per-line status (`available`, `insufficient_stock`, `sold_out`, `unavailable`) for `[{offer_id, qty}]` (1 to 50 lines, qty 1 to 10), the total of the available lines and `can_checkout` (D31) |
 | POST | `/orders` | yes | Create pending order, reserve keys. Body includes `expected_total_cents`; a different recalculated total → `409 price_changed` (D31) |
-| POST | `/orders/{id}/pay` | yes | Simulated payment |
+| POST | `/orders/{id}/pay` | yes, owner | Simulated payment: test card fields; 200 paid (with keys), 402 `card_declined`, 409 conflicts (D34) |
 | GET | `/orders` | yes | Order history, paginated |
-| GET | `/orders/{id}` | yes, owner | Order detail, keys if paid |
+| GET | `/orders/{id}` | yes, owner | Order detail, keys if paid; 404 for anyone else; `Cache-Control: no-store` (built day 5) |
 
 Search: a product matches if `name ILIKE '%term%'` (partial) or `term <% name` (trigram word similarity at threshold 0.4, typos).
 Ranking: prefix match first, then `word_similarity`, then `similarity`, then name and id. Both conditions use the GIN trigram index. Details and measurements: D28.
@@ -141,8 +141,8 @@ Ranking: prefix match first, then `word_similarity`, then `similarity`, then nam
 | 2 | Tue 10 Nov | CI (GitHub Actions + Postgres service). All migrations and seeders. Catalog API (filters, sorting, pagination) with tests. Tailwind theme tokens from eneba.com, layout shell. |
 | 3 | Wed 11 Nov | Search (trigram search, suggestions, tests). Store page with URL state. Header autocomplete. |
 | 4 | Thu 12 Nov | Product page with offer comparison. Server-driven homepage (`/home` + 3 blocks). Cart with `/cart/quote`. |
-| 5 | Fri 13 Nov | Auth. Checkout: reserve, pay, expire, with tests. |
-| 6 | Sat 14 Nov | Order confirmation with key reveal, order history. Styling polish, responsive, error states. Full flow tested on production. |
+| 5 | Fri 13 Nov | Auth. Checkout: reserve, pay, expire, with tests. Payment page with timer, success page with the keys. |
+| 6 | Sat 14 Nov | Order history (order detail and key reveal done on day 5). Content Security Policy back in, checked on a Vercel preview (D33). Styling polish, responsive, error states. Full flow tested on production. |
 | 7 | Sun 15 Nov | Buffer. README, export AI logs, final checks, submit. |
 | | Mon 16 Nov | Reserve only. |
 

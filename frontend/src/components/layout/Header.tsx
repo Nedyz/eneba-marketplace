@@ -5,13 +5,14 @@ import { filterOptionsQueryKey, getFilterOptions } from '../../api/catalog'
 import { cartCount } from '../../features/cart/cartStorage'
 import { useCart } from '../../features/cart/cartStore'
 import { SearchAutocomplete } from '../../features/search/SearchAutocomplete'
-import { CartIcon, SearchIcon, UserIcon } from '../ui/icons'
+import { CartIcon, SearchIcon } from '../ui/icons'
+import { AccountMenu } from './AccountMenu'
 import { PageContainer } from './PageContainer'
 import { Wordmark } from './Wordmark'
 
 /**
  * Site header, modeled on eneba.com's layout:
- * - desktop: wordmark, wide outlined search box, cart and sign-in on one row,
+ * - desktop: wordmark, wide outlined search box, cart and account on one row,
  *   then a darker category bar with platform links.
  * - mobile (< md): one 56px row with icons; the search icon opens the search
  *   field in a row below (Eneba does the same with an overlay).
@@ -40,12 +41,7 @@ export function Header() {
             <SearchIcon />
           </button>
           <CartLink />
-          {/* Sign in (day 5). */}
-          <Link to="/login" className="flex items-center gap-2 p-2 text-button font-extrabold">
-            <UserIcon />
-            <span className="hidden md:inline">Sign in</span>
-            <span className="sr-only md:hidden">Sign in</span>
-          </Link>
+          <AccountMenu />
         </nav>
       </PageContainer>
 

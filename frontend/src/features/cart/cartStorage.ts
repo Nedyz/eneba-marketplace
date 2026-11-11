@@ -144,6 +144,15 @@ export function removeLine(cart: Cart, offerId: number): Cart {
 }
 
 /**
+ * After a successful payment: removes the lines of the offers that were in the
+ * order, whatever their quantity now (D34). Not the whole cart: something
+ * added in another tab while paying stays.
+ */
+export function removeOffers(cart: Cart, offerIds: ReadonlySet<number>): Cart {
+  return cart.some((l) => offerIds.has(l.offerId)) ? cart.filter((l) => !offerIds.has(l.offerId)) : cart
+}
+
+/**
  * Records the prices the buyer has now been shown (D31: a price change note
  * appears once per detection). Offers missing from `prices` are left alone.
  */

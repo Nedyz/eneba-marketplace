@@ -37,7 +37,10 @@ return [
     |
     */
 
-    'guard' => ['web'],
+    // Intersheba (D33): no guards, so a bearer token is the only way in. The
+    // API has no sessions (frontend and API are on different sites, D7), so
+    // checking the session guard first would only be a wasted step.
+    'guard' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -50,7 +53,9 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Intersheba (D18): 7 days. A token stolen from the browser stops working
+    // after a week at most; logout deletes it at once.
+    'expiration' => 60 * 24 * 7,
 
     /*
     |--------------------------------------------------------------------------

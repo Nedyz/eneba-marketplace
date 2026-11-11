@@ -17,13 +17,3 @@ import type { HomeBlock } from '../../api/home'
 export function renderableBlocks<C>(blocks: HomeBlock[], registry: Record<string, C>): { block: HomeBlock; Component: C }[] {
   return blocks.flatMap((block) => (Object.hasOwn(registry, block.type) ? [{ block, Component: registry[block.type] }] : []))
 }
-
-/**
- * Banner links come from the database and are rendered as in-app links, so
- * only same-site paths are allowed: "/store?..." yes; "https://...", "//host"
- * and "/\host" (which browsers also read as another host) no. A banner with any
- * other link is not shown.
- */
-export function isInternalPath(link: string): boolean {
-  return link.startsWith('/') && !link.startsWith('//') && !link.startsWith('/\\')
-}

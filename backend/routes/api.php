@@ -1,11 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\SearchController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Every route in this file is automatically prefixed with /api.
@@ -32,7 +33,20 @@ Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
 // database (D31). Public: guests fill a cart before signing in.
 Route::post('/cart/quote', [CartController::class, 'quote']);
 
-// Laravel default, replaced by /auth/me on day 5.
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// Auth (day 5, D33): Sanctum bearer tokens. The limiters are defined in
+// AppServiceProvider; login also counts failed attempts per email (LoginRequest).
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::get('/auth/me', [AuthController::class, 'me']);
+
+    // Checkout (day 5, D34): reserve, then pay. Order responses carry keys,
+    // so browsers and proxies must never store them (no-store applies to GET).
+    Route::middleware('cache.headers:no_store;private')->group(function () {
+        Route::post('/orders', [OrderController::class, 'store']);
+        Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
+        Route::post('/orders/{order}/pay', [OrderController::class, 'pay'])->whereNumber('order');
+    });
+});
