@@ -30,14 +30,15 @@
 
 ## Commands
 
-Local prerequisites: PHP 8.4 + Composer (Herd Lite, `~/.config/herd-lite/bin`), Node ≥ 22.22, PostgreSQL 17 via Homebrew (`brew services start postgresql@17`) with databases `eneba` (dev) and `eneba_test` (tests).
+Local prerequisites: PHP 8.4 + Composer (Herd Lite, `~/.config/herd-lite/bin`), Node 26 (pinned in `frontend/.nvmrc` and `engines`, same as CI and Vercel), PostgreSQL 17 via Homebrew (`brew services start postgresql@17`) with databases `eneba` (dev) and `eneba_test` (tests).
 
 Backend (`backend/`):
-- `composer install` then `cp .env.example .env` and `php artisan key:generate` (first time)
+- `composer install` then `cp .env.example .env` and `php artisan key:generate` (first time); set `DB_USERNAME` to the local PostgreSQL user (with Homebrew, the macOS user name)
 - `php artisan migrate` (dev database), `php artisan migrate:fresh --seed` (rebuild with demo data; demo login `demo@example.com` / `password`)
 - `php artisan serve` → http://localhost:8000 (health: `/api/health`)
 - `php artisan test` (always runs on `eneba_test`, forced in `phpunit.xml`)
 - `benchmarks/catalog/build.sh` then `php benchmarks/catalog/run.php [--plans]`: rebuilds the throwaway `eneba_bench` database (50k products, 1M keys) and EXPLAIN ANALYZEs the store and search queries (D23, D28). `dropdb eneba_bench` afterwards.
+- `benchmarks/checkout/race.sh [rounds] [buyers] [keys]`: parallel checkout race against a real 16-worker server on a throwaway `eneba_race` database, dropped afterwards (D34).
 
 Frontend (`frontend/`):
 - `npm install` then `cp .env.example .env.local` (first time)

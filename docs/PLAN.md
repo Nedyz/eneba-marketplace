@@ -13,7 +13,7 @@ Browser ──► Vercel (React SPA) ──HTTPS/JSON──► Render (Laravel A
   Store filters, sorting, page and search query live in the URL (`useSearchParams`). The cart lives in `localStorage`, read through a small store with `useSyncExternalStore` (D31).
 - **Backend**: Laravel, JSON API only. Layers: Controller (thin) → Service (business logic) → Eloquent model.
   Validation in `FormRequest` classes, response shape in `JsonResource` classes.
-- **Auth**: Laravel Sanctum personal access tokens (bearer), because frontend and backend are on different sites. The token is kept in `localStorage`; a CSP on Vercel (day 6, after a preview check) will limit what an XSS bug could do with it (D33).
+- **Auth**: Laravel Sanctum personal access tokens (bearer), because frontend and backend are on different sites. The token is kept in `localStorage`; a CSP on Vercel (live since day 6, after a preview check) limits what an XSS bug could do with it (D33).
 - **Database**: PostgreSQL on Neon. Local development and tests use a local PostgreSQL (Homebrew), because `pg_trgm` does not exist in SQLite.
 
 ## Folder structure
@@ -27,12 +27,15 @@ eneba-marketplace/
 │   │   ├── Http/Resources/
 │   │   ├── Models/
 │   │   ├── Services/
-│   │   │   ├── Catalog/        # ProductQuery, SearchService
+│   │   │   ├── Catalog/        # ProductQuery, ProductSearch, ProductDetails, CatalogFilterOptions
 │   │   │   ├── Home/           # HomeLayout, HomeBanners, BestSellers, Deals
-│   │   │   └── Checkout/       # CheckoutService (reserve, pay, expire)
-│   │   └── Payments/           # PaymentGateway interface, FakePaymentGateway
+│   │   │   ├── Cart/           # CartQuoter
+│   │   │   └── Checkout/       # CheckoutService (reserve, pay), OrderExpirer, OrderHistory, OrderKeys
+│   │   ├── Payments/           # PaymentGateway interface, FakePaymentGateway
+│   │   └── Support/            # Discount (shared rounding)
+│   ├── benchmarks/             # catalog (50k products), checkout race; not in the Docker image
 │   ├── database/{migrations,seeders,factories}/
-│   ├── routes/api.php
+│   ├── routes/api.php          # orders:expire and the scheduler are in routes/console.php
 │   ├── tests/{Feature,Unit}/
 │   ├── Dockerfile
 │   └── .env.example
@@ -40,11 +43,12 @@ eneba-marketplace/
 │   └── src/
 │       ├── api/                # typed fetch client, one module per resource
 │       ├── components/{ui,layout}/
-│       ├── features/           # home, store, search, product, cart, checkout, auth, orders
-│       ├── routes/             # router, RequireAuth guard
-│       └── types/
+│       ├── features/           # home, store, search, product, cart, checkout, auth, orders, health
+│       ├── lib/                # formatting, internal path check, debounce
+│       └── routes/             # router, RequireAuth guard, 404 page
 ├── docs/                       # ASSIGNMENT, PLAN, DECISIONS, AI_LOG
 ├── ai-logs/                    # exported full transcripts
+├── README.md                   # for reviewers (day 7)
 └── .github/workflows/ci.yml    # day 2
 ```
 
@@ -134,6 +138,8 @@ Search: a product matches if `name ILIKE '%term%'` (partial) or `term <% name` (
 Ranking: prefix match first, then `word_similarity`, then `similarity`, then name and id. Both conditions use the GIN trigram index. Details and measurements: D28.
 
 ## Day-by-day plan
+
+The plan as agreed on day 1. Work ran ahead of the calendar: days 2 to 6 were done between 9 and 11 November, and the README (day 7) was written on 11 November. Each session's real date is in `AI_LOG.md`.
 
 | Day | Date | Goal |
 |---|---|---|

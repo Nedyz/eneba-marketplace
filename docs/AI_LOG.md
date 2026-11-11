@@ -361,3 +361,24 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 - Known limits, not bugs: "gta 5" finds nothing (abbreviations, D28); "eldn rng" (two typos in short words) is below the 0.4 threshold.
 - Production now holds order #63 on the demo account (one Elden Ring key sold), plus Nedas's manual order.
 - The session 13 click issue did not appear: real mouse clicks on Place order and Pay worked.
+
+## Session 16 — 11 November 2026: README and final docs check (day 7)
+
+**Done**
+- Read CLAUDE.md, PLAN.md, DECISIONS.md, AI_LOG.md and the brief first; checked the README's claims against the code, not against the docs: routes, test cards and card rules, Sanctum expiry, reservation and hold times, CI steps, seed counts (local database and production API: 105 products, 50 games, 7 platforms, 4 regions, 8 sellers), and the live links (frontend 200, API health ok).
+- Ran what CI runs: Pint, 287 backend tests, oxlint, 189 Vitest tests, build. All pass.
+- Re-ran the race test on the current code, since `OrderExpirer` changed on day 6 after its last run: 50 rounds, 3 orders created and 27 refused each round, no key reserved twice, one charge per order.
+- Wrote `README.md` for the reviewers: live links and cold start, demo account and test cards, what was built and where it goes deeper (with links to DECISIONS.md), architecture, testing and CI, known limitations, local setup, how AI was used.
+- Docs brought in line with the code:
+  - PLAN.md: CSP described as live; folder tree lists `Services/Cart`, `Support`, `benchmarks`, `lib` and the real checkout classes, and drops a `types/` folder that never existed; a note that the work ran ahead of the day plan's calendar.
+  - DECISIONS.md: D7 mentions the CSP; D25 lists Vitest in the frontend job; D29 says the price slider was left out on day 6.
+  - CLAUDE.md: Node 26 (as pinned), the race script, and the local `DB_USERNAME`.
+  - `backend/.env.example`: a comment that Homebrew's PostgreSQL user is the macOS user, not `postgres` (the README setup would otherwise fail on the first migration).
+  - CI workflow header comment lists the frontend unit tests.
+
+**Decisions**
+- None new.
+
+**Open issues**
+- D25 says Render's auto-deploy was switched to "After CI Checks Pass"; session 4 left that as a dashboard task for Nedas, and it cannot be checked from the repository. The README does not claim it.
+- PR opened, not merged: Nedas reads the README first.
