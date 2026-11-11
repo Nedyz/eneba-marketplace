@@ -35,8 +35,12 @@ interface ProductCoverProps {
  * The size owns the width. No className prop on purpose: a caller's "w-9"
  * next to a built-in "w-full" would be decided by stylesheet order, not by
  * which class comes last in the string (Tailwind does not merge classes).
+ *
+ * Thumbnails are self-start: in a flex row (a cart line) the default
+ * align-items: stretch makes them as tall as the row, and the stretch wins
+ * over the aspect ratio (on a phone they became 64 x 160 px bars).
  */
-const SIZE_CLASSES = { lg: 'w-full', md: 'w-16 shrink-0', sm: 'w-9 shrink-0' } as const
+const SIZE_CLASSES = { lg: 'w-full', md: 'w-16 shrink-0 self-start', sm: 'w-9 shrink-0' } as const
 
 export function ProductCover({ platform, imageUrl, size = 'lg' }: ProductCoverProps) {
   // Decorative: the product name and platform are always in the text next to the cover.

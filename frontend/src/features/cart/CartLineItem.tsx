@@ -97,7 +97,9 @@ function LinePrice({ line, quoted, current }: { line: CartLine; quoted: QuoteLin
   }
 
   return (
-    <div className="flex flex-col items-end">
+    // Right-aligned beside the name; on a phone the price wraps under the
+    // name, where right-aligning would indent "each" under the total.
+    <div className="flex flex-col items-start md:items-end">
       {current?.line_total_cents != null ? (
         <p className="text-price font-extrabold">{formatPrice(current.line_total_cents)}</p>
       ) : (
