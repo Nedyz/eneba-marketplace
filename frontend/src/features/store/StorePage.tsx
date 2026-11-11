@@ -5,6 +5,7 @@ import { filterOptionsQueryKey, getFilterOptions } from '../../api/catalog'
 import { getProducts, productQueryKeys } from '../../api/products'
 import { PageContainer } from '../../components/layout/PageContainer'
 import { ProductCard, ProductCardSkeleton } from '../../components/ui/ProductCard'
+import { ChevronDownIcon } from '../../components/ui/icons'
 import { ActiveFilters } from './ActiveFilters'
 import { FilterPanel } from './FilterPanel'
 import { Pagination } from './Pagination'
@@ -56,6 +57,8 @@ export function StorePage() {
   const meta = products.data?.meta
   const filterCount =
     params.platforms.length + params.regions.length + (params.priceMin !== null || params.priceMax !== null ? 1 : 0)
+  // Nothing matches at all: the empty state below has its own "Clear search".
+  const noMatches = products.data?.data.length === 0 && meta?.total === 0
 
   return (
     <PageContainer className="py-8">
@@ -63,7 +66,7 @@ export function StorePage() {
         <h1 className="text-2xl font-extrabold md:text-3xl">
           {params.q === null ? 'All games' : <>Results for “{params.q}”</>}
         </h1>
-        {params.q !== null && (
+        {params.q !== null && !noMatches && (
           <button
             type="button"
             onClick={() => updateAndFocusResults({ q: null })}
@@ -83,9 +86,20 @@ export function StorePage() {
             aria-expanded={filtersOpen}
             aria-controls="store-filters"
             onClick={() => setFiltersOpen((open) => !open)}
-            className="w-full border border-white/40 px-4 py-3 text-left font-extrabold md:hidden"
+            className="flex w-full items-center justify-between border border-white/40 px-4 py-3 text-left font-extrabold md:hidden"
           >
-            Filters{filterCount > 0 && ` (${filterCount})`}
+            <span>
+              Filters
+              {filterCount > 0 && (
+                <span className="ml-2 bg-accent px-1.5 py-0.5 text-xs text-black">
+                  <span className="sr-only">, </span>
+                  {filterCount}
+                  <span className="sr-only"> active</span>
+                </span>
+              )}
+            </span>
+            {/* Points down when closed, up when open (aria-expanded says the same to screen readers). */}
+            <ChevronDownIcon className={`size-5 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
           </button>
           <div id="store-filters" className={`${filtersOpen ? 'mt-4 block' : 'hidden'} md:mt-0 md:block`}>
             <FilterPanel params={params} options={filterOptions} onChange={update} />

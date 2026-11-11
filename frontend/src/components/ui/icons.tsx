@@ -60,3 +60,11 @@ export function CloseIcon({ className }: IconProps) {
     </svg>
   )
 }
+
+export function ChevronDownIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  )
+}
