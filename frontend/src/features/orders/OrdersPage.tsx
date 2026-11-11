@@ -109,28 +109,34 @@ function OrderCard({ order }: { order: OrderSummary }) {
 
   return (
     <article aria-labelledby={headingId} className="flex flex-col gap-4 bg-surface p-4 md:p-5">
-      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <div className="flex flex-col gap-1">
+      <header className="flex flex-col gap-1">
+        {/* No wrap: the status stays top right on a phone too ("Payment failed"
+            used to drop under the date while shorter statuses stayed up). */}
+        <div className="flex items-baseline justify-between gap-4">
           <h2 id={headingId} className="text-lg font-extrabold">
             Order #{order.id}
           </h2>
-          <p className="text-sm text-text-muted">
-            <time dateTime={order.created_at}>{formatDateTime(order.created_at)}</time>
-          </p>
+          <StatusBadge tone={statusTone(order.status)} label={statusLabel(order.status)} />
         </div>
-        <StatusBadge tone={statusTone(order.status)} label={statusLabel(order.status)} />
+        {/* Full width under the title row, so a long status does not squeeze it onto two lines. */}
+        <p className="text-sm text-text-muted">
+          <time dateTime={order.created_at}>{formatDateTime(order.created_at)}</time>
+        </p>
       </header>
 
       <ul aria-label={`Items in order #${order.id}`} className="flex flex-col gap-2">
         {order.items.map((item) => (
-          <li key={item.offer_id} className="flex flex-wrap items-baseline justify-between gap-x-4">
-            <span>
-              <span className="font-semibold">{item.product_name}</span>{' '}
-              <span className="text-sm text-text-muted">
+          // Name and edition on the left (one line on desktop, two on a
+          // phone, never broken inside "Steam · Global"), quantity and price
+          // always in the right column, level with the name.
+          <li key={item.offer_id} className="flex items-start justify-between gap-4 md:items-baseline">
+            <span className="min-w-0">
+              <span className="block font-semibold md:inline">{item.product_name}</span>{' '}
+              <span className="block text-sm whitespace-nowrap text-text-muted md:inline">
                 {item.platform} · {item.region}
               </span>
             </span>
-            <span className="text-sm text-text-muted">
+            <span className="shrink-0 text-sm whitespace-nowrap text-text-muted">
               {item.quantity} × {formatPrice(item.unit_price_cents)}
             </span>
           </li>
@@ -169,7 +175,7 @@ const toneClass: Record<StatusTone, string> = {
 
 function StatusBadge({ tone, label }: { tone: StatusTone; label: string }) {
   return (
-    <p className={`flex items-center gap-2 font-bold ${toneClass[tone]}`}>
+    <p className={`flex shrink-0 items-center gap-2 font-bold whitespace-nowrap ${toneClass[tone]}`}>
       <span aria-hidden className="size-2 bg-current" />
       <span className="sr-only">Status: </span>
       {label}
@@ -179,10 +185,14 @@ function StatusBadge({ tone, label }: { tone: StatusTone; label: string }) {
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <PageContainer className="flex flex-col items-start gap-4 py-8">
+    <PageContainer className="py-8">
       <title>{`${title} · Intersheba`}</title>
-      <h1 className="text-3xl font-extrabold">Your orders</h1>
-      {children}
+      {/* A reading width: across 1200 px an item's name and its price sat at
+          opposite ends of the card with nothing in between. */}
+      <div className="flex max-w-3xl flex-col items-start gap-4">
+        <h1 className="text-3xl font-extrabold">Your orders</h1>
+        {children}
+      </div>
     </PageContainer>
   )
 }
