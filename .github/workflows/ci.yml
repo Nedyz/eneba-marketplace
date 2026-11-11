@@ -1,7 +1,7 @@
 # Continuous integration: runs on every push to main and every pull request.
 # Three independent jobs (they run in parallel):
 #   backend  - formatting, tests and a migration round trip on real PostgreSQL
-#   frontend - lint, type check and production build
+#   frontend - lint, unit tests (Vitest), type check and production build
 #   docker   - builds the production image and starts it like Render does
 # Decisions: docs/DECISIONS.md D25.
 name: CI

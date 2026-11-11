@@ -2,6 +2,8 @@
 
 Each entry: the decision, why, and what we gave up. Used later to justify scope in the README.
 
+Where an entry says Nedas chose, asked, raised or caught something, it came from Nedas's side of the conversation, which includes a separate Claude chat used as a reviewer of the agent's plans and reports.
+
 ## D1. Stack: React + TypeScript, Laravel, PostgreSQL (9 Nov)
 - **Why**: Laravel gives authentication, migrations, validation and testing out of the box, which matters with a one-week deadline. PostgreSQL has `pg_trgm` for typo-tolerant search without an external search engine.
 - **Gave up**: Go (faster runtime, but more to build by hand); Elasticsearch/Meilisearch (better search, but another service to host on a free tier).
@@ -27,7 +29,7 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 
 ## D7. Auth with Sanctum bearer tokens, not cookies (9 Nov)
 - **Why**: frontend (`*.vercel.app`) and backend (`*.onrender.com`) are different sites; browsers block third-party cookies, so cookie sessions would need `SameSite=None`, CSRF handling and still break in some browsers.
-- **Gave up**: a token in `localStorage` can be read by XSS. Mitigated by React's default escaping and no `dangerouslySetInnerHTML`.
+- **Gave up**: a token in `localStorage` can be read by XSS. Mitigated by React's default escaping, no `dangerouslySetInnerHTML`, and (since day 6) a Content Security Policy (D33).
 
 ## D8. Cart is client-side (localStorage); the server recalculates at checkout (9 Nov)
 - **Why**: guests can fill a cart before signing in (the flow puts sign-in at checkout), no carts table needed. Prices and stock are never trusted from the client.
@@ -128,10 +130,10 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 ## D25. CI on GitHub Actions, including a production image start (9 Nov)
 - **Jobs** (parallel, on every push to `main` and every pull request):
   - `backend`: Pint formatting check, tests on a PostgreSQL 17 service container (real `pg_trgm`), and a migration round trip (`migrate:fresh`, `migrate:reset`, `migrate`) so a broken `down()` is caught.
-  - `frontend`: lint, type check and production build on Node 26, pinned in `.nvmrc` and `engines` to match Vercel.
+  - `frontend`: lint, Vitest (added on day 3, D29), type check and production build on Node 26, pinned in `.nvmrc` and `engines` to match Vercel.
   - `docker`: builds the production image and starts it against an empty database, checking that the first start migrates and seeds 105 products and that a restart skips the seed (D20). The full container log is always printed.
 - **Why the docker job**: there is no local Docker (D16), so before this, Dockerfile and startup problems only showed up in Render builds. It costs a few minutes per run.
-- **Deploy gating**: Vercel deploys on every push regardless of CI. Render's auto-deploy is switched to "After CI Checks Pass" after the D19 check (which needed an ungated deploy to observe Render's behavior), so a commit with failing tests never reaches the production API.
+- **Deploy gating**: none at deploy time. Vercel deploys on every push regardless of CI, and Render's auto-deploy is set to "On Commit" (the D19 check needed an ungated deploy; switching to "After CI Checks Pass" was planned afterwards but not done). A commit with failing tests could therefore reach production if it were pushed to `main` directly. In practice changes reach `main` only through pull requests merged with green CI (CLAUDE.md).
 
 ## D26. The app is called "Intersheba", not "Eneba" (9 Nov)
 - **Decision (Nedas)**: the app copies Eneba's look and has sign-in and checkout, so a public site branded "Eneba" could be mistaken for the real store. The visible name is "Intersheba" (a text wordmark, no Eneba logo or assets), and the footer says it is an Eneba internship assignment, not affiliated with Eneba.
@@ -196,7 +198,7 @@ Each entry: the decision, why, and what we gave up. Used later to justify scope 
 - **Dropdown visibility follows the live input** (Nedas's catch): `keepPreviousData` returns the previous rows even when the query is disabled (term under 2 characters), and during the debounce the previous term's rows are still current. So the list is shown only while the input is focused and its normalized value has at least 2 characters. Checked by deleting quickly from "witcher" to "w": the list closes immediately and stays closed.
 - **Header search is a fresh search** (Nedas's choice): submitting goes to `/store?q=…` only, dropping the store's other filters, as D6 describes. On `/store` the box shows the URL's `q` and follows Back/Forward; typing never writes to the URL.
 - **Tests**: Vitest for the pure logic (URL parsing and serializing, page window, API query), run in CI. Components are checked in a real browser with Playwright, not with unit tests.
-- **Gave up**: price is two whole-euro inputs, not a slider (maybe day 6); `per_page` is fixed at 24 and not in the URL; no prefetching of the next page.
+- **Gave up**: price is two whole-euro inputs, not a slider (considered for day 6, left out by Nedas's choice); `per_page` is fixed at 24 and not in the URL; no prefetching of the next page.
 
 ## D30. Product page: offer order and sold-out offers (10 Nov)
 - **Endpoint**: `GET /products/{slug}` returns the store card's fields (same `price` block, produced by the same `ProductQuery::withFromPrice()`), the description, and every active offer with seller, price, discount and `stock` (exact number of sellable keys, `ProductKey::scopeSellable`, so stock means the same thing on the store, the product page and, on day 5, at checkout). One `$now` per request, so the header price and the per-offer stock agree. Unknown slug: 404 JSON.
