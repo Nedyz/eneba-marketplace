@@ -11,6 +11,7 @@ import {
   parseCart,
   quoteRequestLines,
   removeLine,
+  removeOffers,
   serializeCart,
   setQty,
 } from './cartStorage'
@@ -157,5 +158,23 @@ describe('cartCount and quoteRequestLines', () => {
 
   it('gives the same request for the same contents in another order or with another snapshot', () => {
     expect(quoteRequestLines([line(1), line(2, 1, 5)])).toEqual(quoteRequestLines([line(2), line(1, 1, 7)]))
+  })
+})
+
+describe('removeOffers', () => {
+  it('removes the ordered offers whatever their quantity, and keeps the rest', () => {
+    const cart: Cart = [line(1, 2), line(2), line(3, 4)]
+
+    expect(removeOffers(cart, new Set([1, 3]))).toEqual([line(2)])
+  })
+
+  it('keeps a line added after the order was placed', () => {
+    expect(removeOffers([line(1), line(9)], new Set([1]))).toEqual([line(9)])
+  })
+
+  it('returns the same cart when nothing matches (no storage write, no re-render)', () => {
+    const cart: Cart = [line(1)]
+
+    expect(removeOffers(cart, new Set([5]))).toBe(cart)
   })
 })

@@ -7,6 +7,7 @@ import {
   markPricesSeen,
   parseCart,
   removeLine,
+  removeOffers,
   serializeCart,
   setQty,
 } from './cartStorage'
@@ -85,6 +86,8 @@ export const cartActions = {
   add: (offerId: number, seen: CartSnapshot, stock: number) => update((c) => addToCart(c, offerId, seen, stock)),
   setQty: (offerId: number, qty: number) => update((c) => setQty(c, offerId, qty)),
   remove: (offerId: number) => update((c) => removeLine(c, offerId)),
+  /** A paid order's offers leave the cart (D34). Only called with the pay response. */
+  removeOrdered: (offerIds: Iterable<number>) => update((c) => removeOffers(c, new Set(offerIds))),
   /**
    * A fresh quote arrived: note every price that differs from what the buyer
    * last saw, then record the new price as seen (D31: one note per detection;
