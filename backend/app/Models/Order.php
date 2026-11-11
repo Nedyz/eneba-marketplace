@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * pending (keys reserved until expires_at) -> paid | failed | expired.
+ * A purchase. Lifecycle in OrderStatus. While pending or paying, expires_at is
+ * the deadline of the key reservation (always equal to the keys' reserved_until).
  */
 #[Fillable(['user_id', 'status', 'total_cents', 'currency', 'expires_at', 'payment_reference', 'paid_at'])]
 class Order extends Model
@@ -16,6 +17,7 @@ class Order extends Model
     protected function casts(): array
     {
         return [
+            'status' => OrderStatus::class,
             'total_cents' => 'integer',
             'expires_at' => 'datetime',
             'paid_at' => 'datetime',

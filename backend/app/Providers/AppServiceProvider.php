@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Payments\FakePaymentGateway;
+use App\Payments\PaymentGateway;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -20,7 +22,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Checkout depends on the interface; this decides which provider it
+        // gets (D11). Tests swap in their own fakes with $this->app->instance().
+        $this->app->singleton(PaymentGateway::class, FakePaymentGateway::class);
     }
 
     /**
