@@ -22,7 +22,7 @@ A full purchase: open a game from the homepage or the search box, add an offer t
 
 ## What I built, and where I went deeper
 
-The brief says that "a few features done extensively beat many fitting minimal requirements", so I picked the parts that decide whether a marketplace works and spent most of the week on them ([D2](docs/DECISIONS.md#d2-scope-go-deep-on-the-purchase-flow-search-store-filters-and-key-delivery-9-nov)).
+The brief says that "a few features done extensively beat many fitting minimal requirements", so I picked the parts that decide whether a marketplace works and spent most of my time on them ([D2](docs/DECISIONS.md#d2-scope-go-deep-on-the-purchase-flow-search-store-filters-and-key-delivery-9-nov)).
 
 **Went deep**
 
@@ -96,7 +96,7 @@ Every scope decision and trade-off is in [`docs/DECISIONS.md`](docs/DECISIONS.md
 - Without cron, expired orders change status only when someone reads or pays them (stock is never affected), and expired token rows are never deleted.
 - There is no admin UI. Homepage blocks and banners are edited in the database, and their types and links are checked only by the frontend when it reads them.
 - English and EUR only. Pagination is offset based.
-- Vercel deploys the frontend on every push to `main`, whether CI passed or not.
+- Vercel and Render deploy on every push to `main`, whether CI passed or not. Changes reach `main` only through pull requests merged with green CI, so in practice CI runs first, but nothing enforces it at deploy time.
 
 ## Running it locally
 
@@ -134,9 +134,9 @@ backend/benchmarks/checkout/race.sh                           # optional: the ra
 
 ## How I used AI
 
-I built this with Claude Code, as the brief encourages. The rules I set for it are in [`CLAUDE.md`](CLAUDE.md). The main ones:
+I built this with Claude Code, as the brief encourages. Besides Claude Code, I used a separate Claude chat as a reviewer: I sent it the agent's plans and reports, it pointed out problems, and it helped me write the prompts I sent to the agent. The rules I set for the agent are in [`CLAUDE.md`](CLAUDE.md). The main ones:
 
-- **Plan before code.** For every feature the agent first proposed a plan and asked the questions that mattered; code was written only after I approved or changed it. Many decisions in DECISIONS.md are marked as my choice, question or catch, for example the server-driven homepage (D4), the expiry questions behind D10, the "Intersheba" name (D26), a leaking-setting test that could never fail (D28) and the double-click and last-key questions behind D34.
+- **Plan before code.** For every feature the agent first proposed a plan and asked the questions that mattered; code was written only after I approved or changed it. Where DECISIONS.md says I chose, asked or caught something, it came from my side of the conversation, which includes the review chat. Examples: the server-driven homepage (D4), the expiry questions behind D10, the "Intersheba" name (D26) and the double-click and last-key questions behind D34. Several catches came from the review chat, for example the `RefreshDatabase` savepoint that made a test unable to fail (D28), the `keepPreviousData` dropdown showing stale suggestions (D29) and the 30-day Best sellers window running empty after the seeded orders age out (D32).
 - **One feature per session, one branch per day**, merged through a pull request with green CI.
 - **Explain everything.** After each step the agent explained what the code does and why, so I can answer for every part of it.
 - **Check claims instead of trusting them.** Numbers in the docs come from measurements (benchmarks, `EXPLAIN ANALYZE`, the race test), and tests were mutation-checked, so I know which rule each test protects.

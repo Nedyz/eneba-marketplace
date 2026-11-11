@@ -380,5 +380,6 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 - None new.
 
 **Open issues**
-- D25 says Render's auto-deploy was switched to "After CI Checks Pass"; session 4 left that as a dashboard task for Nedas, and it cannot be checked from the repository. The README does not claim it.
+- Resolved after review: Render's auto-deploy is "On Commit" (Nedas checked the dashboard), so D25 and the README's known limitations now say neither Render nor Vercel waits for CI.
+- Also after review: the README and a note at the top of DECISIONS.md say that Nedas used a separate Claude chat as a reviewer, and that several catches credited to Nedas came from it (D28, D29, D32 examples).
 - PR opened, not merged: Nedas reads the README first.
