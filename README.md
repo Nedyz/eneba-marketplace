@@ -145,4 +145,5 @@ Where to read it:
 
 - [`docs/AI_LOG.md`](docs/AI_LOG.md): a short summary of every session, including the problems found and the agent's own mistakes.
 - [`ai-logs/`](ai-logs/): the full transcripts (prompts and responses), exported with `/export`, one file per session.
+- The review chat is not included in `ai-logs/`, which holds only the Claude Code sessions.
 - [`docs/PLAN.md`](docs/PLAN.md) and [`docs/DECISIONS.md`](docs/DECISIONS.md): the plan agreed on day 1 and every decision since.
