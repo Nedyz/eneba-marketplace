@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { getSuggestions, productQueryKeys, type ProductSummary } from '../../api/products'
 import { Price } from '../../components/ui/Price'
 import { ProductCover } from '../../components/ui/ProductCover'
-import { SearchIcon } from '../../components/ui/icons'
+import { CloseIcon, SearchIcon } from '../../components/ui/icons'
 import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { normalizeQuery, storeSearchUrl } from '../store/storeParams'
 
@@ -161,8 +161,27 @@ export function SearchAutocomplete({ autoFocus = false, onNavigate }: { autoFocu
           onFocus={() => setOpen(true)}
           onBlur={close}
           onKeyDown={handleKeyDown}
-          className="min-w-0 flex-1 bg-transparent text-base font-extrabold outline-none placeholder:text-text md:text-[19px]"
+          // The browser's own clear button (a small blue cross in Chrome and
+          // Safari) is hidden for the themed one below. type="search" stays:
+          // phones show a Search key, and Escape still clears.
+          className="min-w-0 flex-1 bg-transparent text-base font-extrabold outline-none placeholder:text-text md:text-[19px] [&::-webkit-search-cancel-button]:appearance-none"
         />
+        {value !== '' && (
+          <button
+            type="button"
+            aria-label="Clear search text"
+            // Keeps focus in the input: its blur would close the list first.
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setValue('')
+              setActiveIndex(-1)
+              inputRef.current?.focus()
+            }}
+            className="shrink-0 p-1 text-text-soft hover:text-text"
+          >
+            <CloseIcon className="size-5" />
+          </button>
+        )}
       </div>
 
       {showList && (
@@ -228,7 +247,10 @@ function SuggestionRow({ product }: { product: ProductSummary }) {
     <span className="flex items-center gap-3 px-4 py-2">
       <ProductCover platform={product.platform} imageUrl={product.image_url} size="sm" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-bold">{product.name}</span>
+        {/* Up to three lines, not one: editions share a name, and on a phone one
+            line cut "The Legend of Zelda: Tears of the Kingdom" to "The Legend
+            of…". Next to a discounted price it needs all three at 375 px. */}
+        <span className="line-clamp-3 leading-snug font-bold">{product.name}</span>
         <span className="block text-xs text-text-soft">
           {product.platform.name} · {product.region.name}
         </span>
