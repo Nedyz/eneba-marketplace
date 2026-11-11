@@ -15,7 +15,9 @@ import { Wordmark } from './Wordmark'
  * - desktop: wordmark, wide outlined search box, cart and account on one row,
  *   then a darker category bar with platform links.
  * - mobile (< md): one 56px row with icons; the search icon opens the search
- *   field in a row below (Eneba does the same with an overlay).
+ *   field in a row below (Eneba does the same with an overlay). The category
+ *   bar stays, as a row that scrolls sideways: it holds "All games", the only
+ *   link to the store in the header.
  */
 export function Header() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
@@ -80,6 +82,8 @@ function CartLink() {
   )
 }
 
+const CATEGORY_LINK = 'shrink-0 whitespace-nowrap px-2.5 py-2.5 text-sm font-semibold text-text-soft hover:text-text md:text-base'
+
 /**
  * Category bar: platform links into the store. The list comes from the API
  * (GET /products/filters, the same cached response the store's filter panel
@@ -89,16 +93,20 @@ function CategoryBar() {
   const { data } = useQuery({ queryKey: filterOptionsQueryKey, queryFn: getFilterOptions, staleTime: 5 * 60_000 })
 
   return (
-    <nav aria-label="Categories" className="hidden h-[50px] bg-bar md:block">
-      <PageContainer className="flex h-full items-center gap-1 overflow-x-auto">
-        <Link to="/store" className="whitespace-nowrap px-2.5 py-2.5 font-semibold text-text-soft hover:text-text">
+    <nav aria-label="Categories" className="h-11 bg-bar md:h-[50px]">
+      {/* Fits on one line on desktop. On a phone the row scrolls sideways: the
+          right edge fades out, so a link fading away shows there is more
+          (on some widths a link would otherwise end exactly at the edge).
+          The extra end padding keeps the last link clear of the fade. */}
+      <PageContainer className="flex h-full items-center gap-1 overflow-x-auto [scrollbar-width:none] max-md:pr-10 max-md:[mask-image:linear-gradient(to_right,black_calc(100%_-_32px),transparent)]">
+        <Link to="/store" className={CATEGORY_LINK}>
           All games
         </Link>
         {data?.platforms.map((platform) => (
           <Link
             key={platform.slug}
             to={`/store?${new URLSearchParams({ platform: platform.slug })}`}
-            className="whitespace-nowrap px-2.5 py-2.5 font-semibold text-text-soft hover:text-text"
+            className={CATEGORY_LINK}
           >
             {platform.name}
           </Link>

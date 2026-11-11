@@ -33,7 +33,7 @@ export function OrderItems({ order }: { order: Order }) {
           </li>
         ))}
       </ul>
-      <p className="flex items-baseline justify-between gap-4 px-1">
+      <p className="flex items-baseline justify-between gap-4">
         <span className="font-semibold">Total</span>
         <span className="text-price font-extrabold">{formatPrice(order.total_cents)}</span>
       </p>

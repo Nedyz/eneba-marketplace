@@ -38,7 +38,7 @@ export function CartLineItem({ line, quoted, priceChange }: CartLineItemProps) {
         blocked ? 'border border-white/15 text-text-muted' : 'bg-surface'
       }`}
     >
-      <ProductCover name={name} platformSlug={quoted?.product?.platform.slug ?? ''} imageUrl={quoted?.product?.image_url ?? null} size="md" />
+      <ProductCover platform={quoted?.product?.platform} imageUrl={quoted?.product?.image_url ?? null} size="md" />
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
@@ -97,7 +97,9 @@ function LinePrice({ line, quoted, current }: { line: CartLine; quoted: QuoteLin
   }
 
   return (
-    <div className="flex flex-col items-end">
+    // Right-aligned beside the name; on a phone the price wraps under the
+    // name, where right-aligning would indent "each" under the total.
+    <div className="flex flex-col items-start md:items-end">
       {current?.line_total_cents != null ? (
         <p className="text-price font-extrabold">{formatPrice(current.line_total_cents)}</p>
       ) : (

@@ -16,7 +16,7 @@ export function ProductCard({ product, headingLevel = 'h2' }: { product: Product
       to={`/product/${product.slug}`}
       className="group flex h-full flex-col bg-surface transition-transform duration-150 hover:-translate-y-1"
     >
-      <ProductCover name={product.name} platformSlug={product.platform.slug} imageUrl={product.image_url} />
+      <ProductCover platform={product.platform} imageUrl={product.image_url} />
       <div className="flex flex-1 flex-col gap-3 p-4">
         <Heading className="line-clamp-2 font-bold group-hover:underline">{product.name}</Heading>
         <p className="text-xs font-semibold text-text-soft">

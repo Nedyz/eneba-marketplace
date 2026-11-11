@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
-import { getOrder, type Order, orderQueryKeys } from '../../api/orders'
+import { getOrder, orderQueryKeys } from '../../api/orders'
 import { PageContainer } from '../../components/layout/PageContainer'
 import { OrderItems } from './OrderItems'
+import { awaitsPayment, statusLine } from './orderStatus'
 
 /**
  * /orders/:orderId (signed in only): one order, with its keys once paid.
  * Right after a payment it is the success page ("Payment successful"); the
- * order history (day 6) will link here too.
+ * order history (/orders) links here too.
  */
 export function OrderPage() {
   const id = Number(useParams().orderId)
@@ -52,28 +53,32 @@ export function OrderPage() {
   const paid = data.status === 'paid'
 
   return (
-    <PageContainer className="flex flex-col gap-6 py-8">
+    <PageContainer className="py-8">
       <title>{`Order #${data.id} · Intersheba`}</title>
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-extrabold">{paid && justPaid ? 'Payment successful' : `Order #${data.id}`}</h1>
-        <p className="text-text-soft">{statusLine(data, justPaid)}</p>
-      </header>
+      {/* A reading width, as the order history: across 1200 px the names
+          and prices sat at opposite ends with nothing in between. */}
+      <div className="flex max-w-3xl flex-col gap-6">
+        <header className="flex flex-col gap-2">
+          <h1 className="text-3xl font-extrabold">{paid && justPaid ? 'Payment successful' : `Order #${data.id}`}</h1>
+          <p className="text-text-soft">{statusLine(data, justPaid)}</p>
+        </header>
 
-      {(data.status === 'pending' || data.status === 'paying') && (
-        <Link
-          to={`/checkout/${data.id}`}
-          className="self-start bg-accent px-5 py-3 text-button font-extrabold text-black hover:bg-accent-hover"
-        >
-          Go to payment
-        </Link>
-      )}
+        {awaitsPayment(data.status) && (
+          <Link
+            to={`/checkout/${data.id}`}
+            className="self-start bg-accent px-5 py-3 text-button font-extrabold text-black hover:bg-accent-hover"
+          >
+            Go to payment
+          </Link>
+        )}
 
-      <OrderItems order={data} />
+        <OrderItems order={data} />
 
-      <div className="flex flex-wrap gap-4">
-        <Link to="/store" className="underline">
-          Continue shopping
-        </Link>
+        <div className="flex flex-wrap gap-4">
+          <Link to="/store" className="underline">
+            Continue shopping
+          </Link>
+        </div>
       </div>
     </PageContainer>
   )
@@ -87,24 +92,6 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
       {children}
     </PageContainer>
   )
-}
-
-function statusLine(order: Order, justPaid: boolean): string {
-  switch (order.status) {
-    case 'paid':
-      return justPaid
-        ? `Thank you! Order #${order.id} is paid. Your keys are below.`
-        : `Paid. Your keys are below.`
-    case 'pending':
-    case 'paying':
-      return 'Waiting for payment. Your keys are reserved for a few more minutes.'
-    case 'failed':
-      return 'Not paid. If anything was charged, it was refunded.'
-    case 'expired':
-      return 'The reservation expired before payment. Nothing was charged.'
-    case 'cancelled':
-      return 'Replaced by a newer checkout. Nothing was charged.'
-  }
 }
 
 function isJustPaid(state: unknown): boolean {

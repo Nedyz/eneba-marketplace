@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Payments\PaymentGateway;
 use Illuminate\Database\Connection;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
@@ -169,6 +170,31 @@ class ConcurrentCheckoutTest extends TestCase
         $this->payAs($buyer, $orderId)->assertConflict()->assertJsonPath('code', 'payment_in_progress');
         $this->assertSame([], $this->gateway->charges);
         $this->assertSame(OrderStatus::Paying, Order::find($orderId)->status);
+    }
+
+    public function test_the_order_history_does_not_wait_for_a_payment_in_progress(): void
+    {
+        // The order is past its deadline, but a pay request holds its row lock
+        // (transaction A). Listing the history must not wait for it (D35): the
+        // order is skipped by lazy expiry and listed as it is; the pay request
+        // will find it past its deadline and expire it itself.
+        $buyer = User::factory()->create();
+        $offer = Offer::factory()->price(1000)->withKeys(1)->create();
+        $orderId = $this->placeAs($buyer, $offer)->assertCreated()->json('data.id');
+        Carbon::setTestNow(now()->addMinutes(16));
+
+        $this->rival->beginTransaction();
+        $this->rival->select('SELECT id FROM orders WHERE id = ? FOR UPDATE', [$orderId]);
+
+        DB::statement("SET lock_timeout = '300ms'");
+        $started = microtime(true);
+        $this->getJson('/api/orders')->assertOk()->assertJsonPath('data.0.status', 'pending');
+        $this->assertLessThan(0.25, microtime(true) - $started, 'the history waited for the pay request');
+
+        // Once the lock is gone, the next read expires it.
+        $this->rival->rollBack();
+        $this->getJson('/api/orders')->assertJsonPath('data.0.status', 'expired');
+        $this->assertSame(OrderStatus::Expired, Order::find($orderId)->status);
     }
 
     private function placeAs(User $user, Offer $offer): TestResponse

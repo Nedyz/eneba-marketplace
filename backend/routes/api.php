@@ -44,7 +44,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Checkout (day 5, D34): reserve, then pay. Order responses carry keys,
     // so browsers and proxies must never store them (no-store applies to GET).
+    // The history (day 6, D35) has no keys, but it is still personal data.
     Route::middleware('cache.headers:no_store;private')->group(function () {
+        Route::get('/orders', [OrderController::class, 'index']);
         Route::post('/orders', [OrderController::class, 'store']);
         Route::get('/orders/{order}', [OrderController::class, 'show'])->whereNumber('order');
         Route::post('/orders/{order}/pay', [OrderController::class, 'pay'])->whereNumber('order');

@@ -68,7 +68,10 @@ function OfferRow({ offer, product, isBest, onAdded }: OfferRowProps) {
         // Sold out: no card background and muted text instead of opacity, so the
         // text keeps its contrast (muted on page purple passes AA, D27).
         soldOut ? 'border border-white/15 text-text-muted' : 'bg-surface'
-      } ${isBest ? 'ring-2 ring-accent' : ''}`}
+      } ${
+        // Inset: an outer ring made this card 2 px wider than the others.
+        isBest ? 'ring-2 ring-accent ring-inset' : ''
+      }`}
     >
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -88,18 +91,21 @@ function OfferRow({ offer, product, isBest, onAdded }: OfferRowProps) {
         </p>
       </div>
 
-      <div className="flex items-center gap-4 md:gap-6">
-        <div className="flex flex-col items-end">
-        {hasDiscount && (
-          <p className="flex items-center gap-2 text-xs text-text-muted">
-            <s>
-              <span className="sr-only">Was </span>
-              {formatPrice(offer.original_price_cents!)}
-            </s>
-            <span className={`font-extrabold ${soldOut ? '' : 'text-discount'}`}>-{offer.discount_percent}%</span>
-          </p>
-        )}
-        <p className="text-price font-extrabold">{formatPrice(offer.price_cents)}</p>
+      {/* Phone: this group wraps under the seller and spans the row, price on
+          the left and button on the right, so the buttons line up from row
+          to row. Desktop: price right-aligned next to the button. */}
+      <div className="flex w-full items-center justify-between gap-4 md:w-auto md:justify-start md:gap-6">
+        <div className="flex flex-col items-start md:items-end">
+          {hasDiscount && (
+            <p className="flex items-center gap-2 text-xs text-text-muted">
+              <s>
+                <span className="sr-only">Was </span>
+                {formatPrice(offer.original_price_cents!)}
+              </s>
+              <span className={`font-extrabold ${soldOut ? '' : 'text-discount'}`}>-{offer.discount_percent}%</span>
+            </p>
+          )}
+          <p className="text-price font-extrabold">{formatPrice(offer.price_cents)}</p>
         </div>
         <AddToCart offer={offer} product={product} onAdded={onAdded} />
       </div>

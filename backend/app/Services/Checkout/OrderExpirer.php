@@ -4,6 +4,8 @@ namespace App\Services\Checkout;
 
 use App\Models\Order;
 use App\Models\OrderStatus;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -38,15 +40,19 @@ class OrderExpirer
     }
 
     /**
-     * Every due order (the `orders:expire` command). One short transaction per
-     * order; SKIP LOCKED leaves an order alone while a pay request holds it.
+     * Every due order (the `orders:expire` command), or only one user's (before
+     * their order history is listed, D35). One short transaction per order;
+     * SKIP LOCKED leaves an order alone while a pay request holds it, so the
+     * history never waits for a payment in progress: that order is listed as
+     * it is, and the pay request settles it itself.
      *
      * @return int number of orders expired or failed
      */
-    public function expireAllDue(): int
+    public function expireAllDue(?User $user = null): int
     {
         $count = 0;
         $ids = Order::query()
+            ->when($user, fn (Builder $query) => $query->where('user_id', $user->id))
             ->whereIn('status', [OrderStatus::Pending, OrderStatus::Paying])
             ->where('expires_at', '<', now())
             ->pluck('id');

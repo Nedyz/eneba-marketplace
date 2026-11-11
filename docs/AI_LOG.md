@@ -291,3 +291,54 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 **Open issues**
 - Order history (`GET /orders`, `/orders`) on day 6, which also runs lazy expiry before listing.
 - CSP still to be checked on a Vercel preview (D33, day 6).
+
+## Session 13 — 11 November 2026: order history (day 6, session 1)
+
+**Done**
+- Plan agreed first. Nedas's answers: hide cancelled orders, and filter them in the query (not on the frontend) so pages stay full and the total is right; 10 per page; no keys in the list.
+- Backend: `GET /orders` (`OrderIndexRequest`, `OrderHistory` service, `OrderSummaryResource`), with lazy expiry first through `OrderExpirer::expireAllDue(?User)` (SKIP LOCKED, shared with `orders:expire`). 16 feature tests in `OrderIndexTest`, plus one two-session test (the history does not wait for a pay request's lock). Backend suite 287. 12 rules mutation-checked, all caught (one only after fixing the test, below).
+- Frontend: `/orders` (`OrdersPage`): status badge, date and time in the buyer's timezone, items, total, "View keys" / "View order" / "Go to payment", page in the URL with the store's `Pagination`, loading, error, empty and past-the-end states. `orderStatus.ts` (labels, tones, `awaitsPayment`, `statusLine` moved from `OrderPage`, `parseOrdersPage`) and `formatDateTime`. 9 Vitest tests (suite 189), 7 mutations all caught.
+- Checked in a real browser (Playwright) on the local seed: signed out → `/login` → back on `/orders`; the demo user's 5 orders in date order; a new pending order with "Go to payment"; checking out again hid the cancelled order (6, not 7); a reservation moved into the past (in UTC) listed as Expired, with the key released in the database; as `buyer4`, a purchase showed at the top of the list right away, 11 orders over 2 pages; Next/Previous and the scroll reset; `?page=5` "Page 5 is empty"; `?page=99999999` capped to 10,000 (200, not 422); 375 px wide without sideways scroll; "View keys" opened the order with its key.
+
+**Decisions**
+- D35: cancelled orders filtered in SQL; failed and expired kept; no keys in the list (separate resource); lazy expiry with SKIP LOCKED before listing; `created_at, id` ordering; page ceiling 10,000; list always refetched; local-time dates; unique link names.
+
+**Problems found and fixed**
+- The `id` tiebreak mutation survived twice. First, ties came back in insertion order by luck. Then my fix (rewriting rows in a scrambled order) changed nothing, because an `UPDATE` to the same `created_at` is a HOT update and keeps the index entry. I checked the plan and `ctid`s instead of guessing a third time; the test now changes the value away and back, and the mutation is caught.
+- Accessible link names read "View order of order #61"; now "View order #61".
+- I moved the query rules out of the controller into an `OrderHistory` service after writing them there first (the project's controller → service layering).
+- My mistakes: a wrong `JsonResource` namespace (fixed before running); in the browser I twice sent dependent steps in one batch, so the clicks ran before the page had loaded (they failed without clicking anything).
+
+**Open issues**
+- In one Playwright tab, mouse clicks stopped reaching the page (Place order, a test card's "Use" button, Pay) while `fill` and a click dispatched inside the page worked; a fresh tab fixed it. Not reproduced and the cause is not known; the app's handlers were shown to work. Worth one manual checkout on production during day 6's full-flow test.
+- CSP still to be checked on a Vercel preview (D33), next day 6 session.
+
+## Session 14 — 11 November 2026: design polish (day 6, session 2)
+
+**Done**
+- Audit first, no fixes: every page (home, store, search dropdown, product, cart, checkout, payment, orders, order, login, register, 404) at 1440 and 375 px in Playwright, on the local seed. No page scrolled sideways and the console was clean. 14 issues, ranked by how much a reviewer would notice them. Nedas picked 1 to 13 and skipped 14 (order numbers that look out of order in the history: seed data, and production is not reseeded). Price slider and inputs left out on Nedas's request.
+- Fixed, one commit per page group:
+  - Covers show the platform instead of the title (D21 updated): the title was printed twice on every card, and editions of one game looked like duplicates.
+  - The category bar stays on mobile as a sideways-scrolling row, with a faded right edge so a cut-off link shows there is more. Below 768 px it was hidden, and with it "All games", the header's only store link.
+  - Search: a themed clear button replaces the browser's own cross. Suggestion names wrap to up to 3 lines (3 are needed next to a discounted price at 375 px).
+  - 404 in the page container and a card, with "Browse games", like the empty cart.
+  - Cart thumbnails keep their 3:4 shape (they stretched to 64 x 160 px); "each" is no longer indented under the total on mobile.
+  - Product offers: the "Best price" ring is inset (that card was 2 px wider); on mobile the buttons line up.
+  - Checkout lines have the same format as payment and order (platform, region, unit price, padding); the order total is no longer indented 4 px.
+  - Orders and order page capped at 768 px; mobile history rows no longer break inside "Steam · Global", and the status stays on the title's line.
+  - Store: the mobile Filters toggle has a chevron and an active-filter count badge; "Clear search" appears once on an empty search.
+- Each fixed page checked again at both widths after its change, then a final pass over all pages: no sideways scroll, no console errors or warnings. Frontend lint, 189 Vitest tests and build, backend Pint and 287 tests all pass.
+
+**Decisions**
+- D21 changed: platform on the cover, plain text, no logos.
+- Not in the brief, decided along the way: thumbnails stay plain gradients in the cart and search (too small for text); checkout keeps no thumbnails, matching payment and order rather than the cart.
+
+**Problems found and fixed**
+- In the audit, my selector `/use/i` for the test card's "Use" button matched "Demo User" too, so it opened the account menu and pressed Pay on an empty form. Redone with the button's accessible name.
+- My first cover comment cited D3 for "a product is an edition"; it is D5.
+- `self-start` on the search thumbnails would have moved them to the top of a three-line suggestion; only the cart size needs it.
+- The Filters button's name read "Filters2 active"; a hidden comma fixes that. Chrome reports "Filters , 2 active" (the hidden span counts as a separate block); screen readers read it as intended.
+
+**Open issues**
+- CSP still to be checked on a Vercel preview (D33).
+- One manual checkout on production (the Playwright click issue from session 13).

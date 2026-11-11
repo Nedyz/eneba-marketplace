@@ -109,10 +109,15 @@ export function CheckoutPage() {
               const current = quoted?.qty === line.qty ? quoted : undefined
               const note = priceNotes.get(line.offerId)
               return (
-                <li key={line.offerId} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 bg-surface p-4">
+                // Same layout as the payment and order pages (OrderItems), so
+                // the line does not change shape from one step to the next.
+                <li key={line.offerId} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 bg-surface p-4 md:p-5">
                   <div className="flex flex-col gap-1">
                     <span className="font-bold">{quoted?.product?.name ?? line.seen.productName}</span>
-                    <span className="text-sm text-text-muted">Sold by {quoted?.seller?.name ?? line.seen.sellerName}</span>
+                    <span className="text-sm text-text-muted">
+                      {quoted?.product && `${quoted.product.platform.name} · ${quoted.product.region.name} · `}
+                      Sold by {quoted?.seller?.name ?? line.seen.sellerName}
+                    </span>
                     {note && (
                       <span className="text-sm font-semibold text-accent">
                         Price {note.toCents > note.fromCents ? 'went up' : 'dropped'} from {formatPrice(note.fromCents)} to{' '}
@@ -124,7 +129,9 @@ export function CheckoutPage() {
                     )}
                   </div>
                   <span className="text-right">
-                    <span className="text-sm text-text-muted">{line.qty} ×</span>{' '}
+                    <span className="text-sm text-text-muted">
+                      {line.qty} ×{current?.unit_price_cents != null && ` ${formatPrice(current.unit_price_cents)}`}
+                    </span>{' '}
                     <span className="font-extrabold">
                       {current?.line_total_cents != null ? formatPrice(current.line_total_cents) : '—'}
                     </span>

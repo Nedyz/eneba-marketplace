@@ -64,7 +64,7 @@ export function ProductPage() {
       <article className="flex flex-col gap-10">
         <header className="flex flex-col gap-6 sm:flex-row sm:items-start md:gap-10">
           <div className="w-40 shrink-0 sm:w-56 md:w-64">
-            <ProductCover name={game.name} platformSlug={game.platform.slug} imageUrl={game.image_url} />
+            <ProductCover platform={game.platform} imageUrl={game.image_url} />
           </div>
 
           <div className="flex min-w-0 flex-col gap-4">

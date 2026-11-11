@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\OrderIndexRequest;
 use App\Http\Requests\PayOrderRequest;
 use App\Http\Requests\PlaceOrderRequest;
 use App\Http\Resources\OrderResource;
+use App\Http\Resources\OrderSummaryResource;
 use App\Models\Order;
 use App\Services\Checkout\CheckoutService;
 use App\Services\Checkout\OrderExpirer;
+use App\Services\Checkout\OrderHistory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
  * Checkout endpoints (D34). Thin: the rules live in CheckoutService. Conflicts
@@ -19,6 +23,17 @@ use Illuminate\Http\Request;
 class OrderController extends Controller
 {
     public function __construct(private CheckoutService $checkout, private OrderExpirer $expirer) {}
+
+    /**
+     * GET /api/orders: the signed-in user's order history (D35), newest first,
+     * 10 per page, no cancelled orders, no keys. Rules in OrderHistory.
+     */
+    public function index(OrderIndexRequest $request, OrderHistory $history): AnonymousResourceCollection
+    {
+        return OrderSummaryResource::collection(
+            $history->page($request->user(), $request->page(), OrderIndexRequest::PER_PAGE),
+        );
+    }
 
     /** POST /api/orders: create a pending order and reserve its keys (201). */
     public function store(PlaceOrderRequest $request): JsonResponse
