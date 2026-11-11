@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
-import { getOrder, type Order, orderQueryKeys } from '../../api/orders'
+import { getOrder, orderQueryKeys } from '../../api/orders'
 import { PageContainer } from '../../components/layout/PageContainer'
 import { OrderItems } from './OrderItems'
+import { awaitsPayment, statusLine } from './orderStatus'
 
 /**
  * /orders/:orderId (signed in only): one order, with its keys once paid.
  * Right after a payment it is the success page ("Payment successful"); the
- * order history (day 6) will link here too.
+ * order history (/orders) links here too.
  */
 export function OrderPage() {
   const id = Number(useParams().orderId)
@@ -59,7 +60,7 @@ export function OrderPage() {
         <p className="text-text-soft">{statusLine(data, justPaid)}</p>
       </header>
 
-      {(data.status === 'pending' || data.status === 'paying') && (
+      {awaitsPayment(data.status) && (
         <Link
           to={`/checkout/${data.id}`}
           className="self-start bg-accent px-5 py-3 text-button font-extrabold text-black hover:bg-accent-hover"
@@ -87,24 +88,6 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
       {children}
     </PageContainer>
   )
-}
-
-function statusLine(order: Order, justPaid: boolean): string {
-  switch (order.status) {
-    case 'paid':
-      return justPaid
-        ? `Thank you! Order #${order.id} is paid. Your keys are below.`
-        : `Paid. Your keys are below.`
-    case 'pending':
-    case 'paying':
-      return 'Waiting for payment. Your keys are reserved for a few more minutes.'
-    case 'failed':
-      return 'Not paid. If anything was charged, it was refunded.'
-    case 'expired':
-      return 'The reservation expired before payment. Nothing was charged.'
-    case 'cancelled':
-      return 'Replaced by a newer checkout. Nothing was charged.'
-  }
 }
 
 function isJustPaid(state: unknown): boolean {
