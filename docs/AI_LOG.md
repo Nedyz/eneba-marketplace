@@ -342,3 +342,22 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 **Open issues**
 - CSP still to be checked on a Vercel preview (D33).
 - One manual checkout on production (the Playwright click issue from session 13).
+
+## Session 15 — 11 November 2026: CSP, merge and production check (day 6, session 3)
+
+**Done**
+- CSP back: `a336802` reverts the day 5 revert (`1e7d53f`). Nedas checked the Vercel preview console in their signed-in browser (the preview is behind Vercel Authentication): the headers were present, and the only messages were the expected CORS errors, the `vercel.live` toolbar script and fonts injected by browser extensions (D33 updated).
+- Committed the two day 6 transcripts (scanned for secrets first), then merged PR #4 as a merge commit once CI was green (`1987970`).
+- Waited for both deploys: Vercel by its commit status, Render by `GET /api/orders` changing from 405 to 401 (that route is new in PR #4).
+- Production check in a clean Playwright browser: CSP, `nosniff` and `Referrer-Policy` headers; home (banner, best sellers, deals); store filter, sort and pagination kept in the URL, including Back; search suggestions and typos ("witcer", "hogwards", "stardw valey", "balders gate", "eldn ring"); product offers; cart; checkout signed out → sign in as the demo user → back on checkout; place order, pay with 4242, key on the order page (also after a reload); order history and "View keys". No console message from the app. Nedas did one manual checkout on production and checked the console in an incognito window: both fine.
+
+**Decisions**
+- None new. D33 now records that the CSP was checked on the preview and is live.
+
+**Problems found and fixed**
+- None in the app. Three false alarms from my own test scripts: a "Next" button expected on the last page, prices read before the new page had loaded, and a hand-written API call with `platform` instead of `platform[]` (a correct 422).
+
+**Open issues**
+- Known limits, not bugs: "gta 5" finds nothing (abbreviations, D28); "eldn rng" (two typos in short words) is below the 0.4 threshold.
+- Production now holds order #63 on the demo account (one Elden Ring key sold), plus Nedas's manual order.
+- The session 13 click issue did not appear: real mouse clicks on Place order and Pay worked.
