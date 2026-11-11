@@ -104,7 +104,7 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
    3. Transaction B: success → keys `sold`, order `paid`. Decline → keys released, order `failed`, `402 card_declined`. Keys no longer ours, or the order no longer `paying` (failed by lazy expiry during a very slow charge) → refund and fail.
 3. **Expiry of old pending orders** (no cron on Render free tier):
    - Keys never need cleaning up to stay correct: the reserve query already treats expired reservations as available.
-   - Order status is expired lazily (`OrderExpirer`): by the pay endpoint (step 2.1), by `GET /orders/{id}`, and (day 6) before the order history query. `pending` past `expires_at` → `expired`; `paying` past its hold → `failed` (an interrupted payment). Keys still linked to the order are released.
+   - Order status is expired lazily (`OrderExpirer`): by the pay endpoint (step 2.1), by `GET /orders/{id}`, and before the order history is listed (`GET /orders`, skipping an order a pay request has locked, D35). `pending` past `expires_at` → `expired`; `paying` past its hold → `failed` (an interrupted payment). Keys still linked to the order are released.
    - The same logic is exposed as `php artisan orders:expire` and registered in the Laravel scheduler, so a paid deployment with cron would expire orders proactively.
    - The cart is changed only after a successful payment, and then only the ordered offers are removed, so after a decline or an expiry the buyer can check out again in one click (D34).
 
@@ -127,7 +127,7 @@ Status columns are `varchar` + CHECK constraint (Laravel `enum()` on PostgreSQL)
 | POST | `/cart/quote` | | Current prices, stock and per-line status (`available`, `insufficient_stock`, `sold_out`, `unavailable`) for `[{offer_id, qty}]` (1 to 50 lines, qty 1 to 10), the total of the available lines and `can_checkout` (D31) |
 | POST | `/orders` | yes | Create pending order, reserve keys. Body includes `expected_total_cents`; a different recalculated total → `409 price_changed` (D31) |
 | POST | `/orders/{id}/pay` | yes, owner | Simulated payment: test card fields; 200 paid (with keys), 402 `card_declined`, 409 conflicts (D34) |
-| GET | `/orders` | yes | Order history, paginated |
+| GET | `/orders` | yes | Order history: newest first (id breaks ties), 10 per page (`page` 1 to 10000), cancelled orders left out in the query, no keys. Lazy expiry first (D35) |
 | GET | `/orders/{id}` | yes, owner | Order detail, keys if paid; 404 for anyone else; `Cache-Control: no-store` (built day 5) |
 
 Search: a product matches if `name ILIKE '%term%'` (partial) or `term <% name` (trigram word similarity at threshold 0.4, typos).

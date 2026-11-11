@@ -291,3 +291,24 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 **Open issues**
 - Order history (`GET /orders`, `/orders`) on day 6, which also runs lazy expiry before listing.
 - CSP still to be checked on a Vercel preview (D33, day 6).
+
+## Session 13 — 11 November 2026: order history (day 6, session 1)
+
+**Done**
+- Plan agreed first. Nedas's answers: hide cancelled orders, and filter them in the query (not on the frontend) so pages stay full and the total is right; 10 per page; no keys in the list.
+- Backend: `GET /orders` (`OrderIndexRequest`, `OrderHistory` service, `OrderSummaryResource`), with lazy expiry first through `OrderExpirer::expireAllDue(?User)` (SKIP LOCKED, shared with `orders:expire`). 16 feature tests in `OrderIndexTest`, plus one two-session test (the history does not wait for a pay request's lock). Backend suite 287. 12 rules mutation-checked, all caught (one only after fixing the test, below).
+- Frontend: `/orders` (`OrdersPage`): status badge, date and time in the buyer's timezone, items, total, "View keys" / "View order" / "Go to payment", page in the URL with the store's `Pagination`, loading, error, empty and past-the-end states. `orderStatus.ts` (labels, tones, `awaitsPayment`, `statusLine` moved from `OrderPage`, `parseOrdersPage`) and `formatDateTime`. 9 Vitest tests (suite 189), 7 mutations all caught.
+- Checked in a real browser (Playwright) on the local seed: signed out → `/login` → back on `/orders`; the demo user's 5 orders in date order; a new pending order with "Go to payment"; checking out again hid the cancelled order (6, not 7); a reservation moved into the past (in UTC) listed as Expired, with the key released in the database; as `buyer4`, a purchase showed at the top of the list right away, 11 orders over 2 pages; Next/Previous and the scroll reset; `?page=5` "Page 5 is empty"; `?page=99999999` capped to 10,000 (200, not 422); 375 px wide without sideways scroll; "View keys" opened the order with its key.
+
+**Decisions**
+- D35: cancelled orders filtered in SQL; failed and expired kept; no keys in the list (separate resource); lazy expiry with SKIP LOCKED before listing; `created_at, id` ordering; page ceiling 10,000; list always refetched; local-time dates; unique link names.
+
+**Problems found and fixed**
+- The `id` tiebreak mutation survived twice. First, ties came back in insertion order by luck. Then my fix (rewriting rows in a scrambled order) changed nothing, because an `UPDATE` to the same `created_at` is a HOT update and keeps the index entry. I checked the plan and `ctid`s instead of guessing a third time; the test now changes the value away and back, and the mutation is caught.
+- Accessible link names read "View order of order #61"; now "View order #61".
+- I moved the query rules out of the controller into an `OrderHistory` service after writing them there first (the project's controller → service layering).
+- My mistakes: a wrong `JsonResource` namespace (fixed before running); in the browser I twice sent dependent steps in one batch, so the clicks ran before the page had loaded (they failed without clicking anything).
+
+**Open issues**
+- In one Playwright tab, mouse clicks stopped reaching the page (Place order, a test card's "Use" button, Pay) while `fill` and a click dispatched inside the page worked; a fresh tab fixed it. Not reproduced and the cause is not known; the app's handlers were shown to work. Worth one manual checkout on production during day 6's full-flow test.
+- CSP still to be checked on a Vercel preview (D33), next day 6 session.
