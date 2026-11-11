@@ -271,3 +271,23 @@ Short summary per session. Full transcripts are in `ai-logs/`.
 - CSP is not on `main`: the Vercel preview is behind Vercel Authentication and the Chrome extension was not connected. Day 6: revert the revert, open the preview in a signed-in browser, check the console.
 - Expired token rows stay in `personal_access_tokens` on Render (no cron); harmless.
 - `/checkout` and `/orders` are placeholders until the checkout session and day 6.
+
+## Session 12 — 11 November 2026: checkout (day 5, session 2)
+
+**Done**
+- Plan agreed first, answering Nedas's three questions: two buyers and the last key (and how to test it for real), a double click on Pay, and the cart after a successful and a failed payment. Nedas approved four additions: the `paying` and `cancelled` statuses, one pending order per user, `GET /orders/{id}` now, and card numbers reaching the backend (simulated payment only). Nedas's additions: D34 says that one pending order per user stops one account from holding stock with many reservations; the payment page says clearly that it is a simulation and only test cards work, so nobody types a real card.
+- Backend: migration for the new statuses, `OrderStatus` enum, `PaymentGateway` / `FakePaymentGateway` (idempotent per key), `CheckoutService` (reserve with SKIP LOCKED, pay in two short transactions around the charge), `OrderKeys`, `OrderExpirer` and `orders:expire`, `OrderController` (`POST /orders`, `GET /orders/{id}`, `POST /orders/{id}/pay`), self-rendering 409/402 exceptions. 76 feature tests (suite 270), including a two-session concurrency class; 31 of 33 mutations caught (the 2 survivors are redundant guards, caught together).
+- `benchmarks/checkout/race.sh`: 30 parallel buyers for 3 keys and 5 parallel pays, against a real 16-worker server: 50 rounds clean; it catches a reserve without row locks, and showed that without the `paying` status duplicate pays refund the real charge.
+- Frontend: `api/orders.ts`, `/checkout` (review and place order), `/checkout/:orderId` (simulation notice, test cards, timer, pay), `/orders/:orderId` (success page, keys with copy buttons); pure rules for card checks, the countdown, checkout errors and removing paid offers from the cart, with 27 Vitest tests (suite 180), 10 mutations all caught. Checked end to end in a real browser (list in D34).
+
+**Decisions**
+- D34: SKIP LOCKED reservation and what it costs; `paying` as the guard against double payment, the idempotency key as the second line; one pending order per user (also against one account hoarding stock); the cart changes only on a successful payment and only for the ordered offers; test cards only, checked in the browser before sending; timer from `seconds_left`; 404 for others' orders; no-store on order responses.
+
+**Problems found and fixed**
+- The two-session test of the per-user lock passed even with the lock removed: the order insert's foreign key check (`FOR KEY SHARE` on `users`) also waits for a `FOR UPDATE`, but too late. The rival now uses `FOR NO KEY UPDATE`, so only the explicit lock is measured; the mutation is caught.
+- The concurrency class left committed rows behind (`DatabaseTruncation` cleans only before a test), so `DemoSeedTest` found data and its seeder skipped: 17 failures in the full suite. It now truncates after each test as well.
+- My mistakes: the race script's first run used Laravel's router script from the wrong directory, and killing the server's parent PID left its 16 workers listening, so a second run talked to the broken leftover server (every answer 200). The script now refuses a busy port and stops the workers by command line. In the browser expiry check I shortened a reservation with `now()` in a local-time psql session, 2 hours off from the UTC timestamps; redone in UTC.
+
+**Open issues**
+- Order history (`GET /orders`, `/orders`) on day 6, which also runs lazy expiry before listing.
+- CSP still to be checked on a Vercel preview (D33, day 6).
